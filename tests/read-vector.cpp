@@ -1,26 +1,31 @@
 // read-vector.cpp
 #include <iostream>
 #include <ctime>
-
+#include <stdlib.h>
 using namespace std;
+
 int main(int argc, char** argv)
 {
-	int data[1048576];
+    int size =  atoi(argv[1]);
+	int *data = (int *) malloc (sizeof(int) * size);
 	int next = 0;
 	int times = 1000;
-	for(int j = 1; j <= 512; j = j * 2)
+    int maxstride = 8388608; // 32MiB
+
+	for(int stride = 1; stride <= maxstride; stride = stride * 2)
 	{
 		clock_t begin = clock();
 		for(int t = 0; t <= times; t++)
 		{
-			for(int i = 0; i <= 1048576; i = i + j)
+			for(int i = 0; i <= size; i = i + stride)
 			{
 				next = data[i];
 			}
 		}
 		clock_t end = clock();
-		double elapsed_secs = double(end-begin) / CLOCKS_PER_SEC / times / (1048576 / j);
-		cout << j << " " << elapsed_secs << endl;
+		double elapsed_secs = double(end-begin) / CLOCKS_PER_SEC / times / (size / stride);
+		cout << stride << " " << elapsed_secs << endl;
 	}
+    free(data);
 }
 
