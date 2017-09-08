@@ -1,0 +1,7 @@
+# load in gnuplot with the comand gnuplot> load 'filename'
+PLOTS = system("ls -tr1 *.data")
+LABELS = system("ls -tr1 *.data")
+set logscale x
+set format x '%.0s%cB'
+set xtics 0,0.5
+plot for [i=1:words(PLOTS)] word(PLOTS, i) u 1:($2 * 1000) title word(LABELS, i) with linespoints

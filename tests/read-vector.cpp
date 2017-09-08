@@ -7,12 +7,12 @@ using namespace std;
 int main(int argc, char** argv)
 {
     int size =  atoi(argv[1]);
-	int *data = (int *) malloc (sizeof(int) * size);
-	int next = 0;
+    char *data = (char *) malloc (sizeof(char) * size); // 1 integer --> 1 byte
+	char next = 0;
 	int times = 1000;
-    int maxstride = 8388608; // 32MiB
+    int maxstride = size / 2;// half of the size
 
-	for(int stride = 1; stride <= maxstride; stride = stride * 2)
+	for(int stride = 4; stride <= maxstride; stride = stride * 2)
 	{
 		clock_t begin = clock();
 		for(int t = 0; t <= times; t++)
@@ -27,5 +27,6 @@ int main(int argc, char** argv)
 		cout << stride << " " << elapsed_secs << endl;
 	}
     free(data);
+    return (int) next;
 }
 
