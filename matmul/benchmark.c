@@ -14,7 +14,7 @@
 #define MAX_SPEED 19.2 // defining Max Gflops/s per core on Edison.
 //#define MAX_SPEED 8.4  // definning Hopper Max Gflops/s per node (machine retired)
 
-/* reference_dgemm wraps a call to the BLAS-3 routine DGEMM, via the standard FORTRAN interface - hence the reference semantics. */ 
+/* reference_dgemm wraps a call to the BLAS-3 routine DGEMM, via the standard FORTRAN interface - hence the reference semantics. */
 #define DGEMM dgemm_
 extern void DGEMM (char*, char*, int*, int*, int*, double*, double*, int*, double*, int*, double*, double*, int*); 
 void reference_dgemm (int N, double ALPHA, double* A, double* B, double* C)
