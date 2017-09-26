@@ -32,7 +32,7 @@ LIBS = -L/home/hermetico/opt/atlas/lib -lptcblas -latlas -lpthread
 
 CFLAGS = -O3
 
-all:	benchmark-naive benchmark-blocked benchmark-blas
+all:	benchmark-naive benchmark-blocked benchmark-blas benchmark
 
 benchmark-naive: benchmark.o dgemm-naive.o
 	$(CC) -o $@ benchmark.o dgemm-naive.o $(LIBS)
@@ -40,6 +40,8 @@ benchmark-blocked: benchmark.o dgemm-blocked.o
 	$(CC) -o $@ benchmark.o dgemm-blocked.o $(LIBS)
 benchmark-blas: benchmark.o dgemm-blas.o
 	$(CC) -o $@ benchmark.o dgemm-blas.o $(LIBS)
+benchmark: benchmark.o dgemm.o
+	$(CC) -o $@ benchmark.o dgemm.o $(LIBS)
 
 %.o: %.cpp
 	$(CC) -c $(CFLAGS) $<

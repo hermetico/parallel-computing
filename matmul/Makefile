@@ -5,10 +5,13 @@ CC = cc
 OPT = -O1
 CFLAGS = -Wall -std=gnu99 $(OPT)
 LDFLAGS = -Wall
+
 # librt is needed for clock_gettime
 LDLIBS = -lrt -lblas -llapack
 
-targets = benchmark-naive benchmark-blocked benchmark-blas
+
+
+targets = benchmark-naive benchmark-blocked benchmark-blas benchmark
 objects = benchmark.o dgemm-naive.o dgemm-blocked.o dgemm-blas.o  
 
 .PHONY : default
@@ -23,6 +26,9 @@ benchmark-blocked : benchmark.o dgemm-blocked.o
 	$(CC) -o $@ $^ $(LDLIBS)
 benchmark-blas : benchmark.o dgemm-blas.o
 	$(CC) -o $@ $^ $(LDLIBS)
+benchmark : benchmark.o dgemm.o
+	$(CC) -o $@ $^ $(LDLIBS)
+
 
 %.o : %.c
 	$(CC) -c $(CFLAGS) $<
