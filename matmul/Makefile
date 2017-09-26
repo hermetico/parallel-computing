@@ -3,13 +3,17 @@
 
 CC = cc 
 OPT = -O1
-CFLAGS = -Wall -std=gnu99 $(OPT)
+CFLAGS = -g -Wall -std=gnu99 $(OPT)
 LDFLAGS = -Wall
 # librt is needed for clock_gettime
-LDLIBS = -lrt -lblas -llapack
+#LDLIBS = -lrt -lblas -llapack
 
-targets = benchmark-naive benchmark-blocked benchmark-blas
-objects = benchmark.o dgemm-naive.o dgemm-blocked.o dgemm-blas.o  
+#compiled ATLAS
+#LDLIBS = -L/home/hermetico/opt/atlas/lib -lptcblas -latlas -lpthread
+LDLIBS = -L/home/hermetico/opt/atlas/lib -lrt -lblas -llapack
+
+targets = benchmark-naive benchmark-blocked benchmark-blas benchmark benchmark-plot
+objects = benchmark.o dgemm-naive.o dgemm-blocked.o dgemm-blas.o dgemm.o benchmark-plot.o
 
 .PHONY : default
 default : all
@@ -22,6 +26,10 @@ benchmark-naive : benchmark.o dgemm-naive.o
 benchmark-blocked : benchmark.o dgemm-blocked.o
 	$(CC) -o $@ $^ $(LDLIBS)
 benchmark-blas : benchmark.o dgemm-blas.o
+	$(CC) -o $@ $^ $(LDLIBS)
+benchmark : benchmark.o dgemm.o
+	$(CC) -o $@ $^ $(LDLIBS)
+benchmark-plot : benchmark-plot.o dgemm.o
 	$(CC) -o $@ $^ $(LDLIBS)
 
 %.o : %.c
