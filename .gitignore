@@ -33,3 +33,4 @@
 
 # idea projects
 *.idea/
+matmul/cmake-build-debug/
