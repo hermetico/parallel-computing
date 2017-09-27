@@ -5,13 +5,15 @@
 #include <float.h>  // For: DBL_EPSILON
 #include <math.h>   // For: fabs
 
+
 #ifdef GETTIMEOFDAY
 #include <sys/time.h> // For struct timeval, gettimeofday
 #else
 #include <time.h> // For struct timespec, clock_gettime, CLOCK_MONOTONIC
 #endif
 
-#define MAX_SPEED 19.2 // defining Max Gflops/s per core on Edison.
+#define MAX_SPEED 19.2 // defining Max Gflops/s  pero core on Intel i-7 4500U
+//#define MAX_SPEED 19.2 // defining Max Gflops/s per core on Edison.
 //#define MAX_SPEED 8.4  // definning Hopper Max Gflops/s per node (machine retired)
 
 /* reference_dgemm wraps a call to the BLAS-3 routine DGEMM, via the standard FORTRAN interface - hence the reference semantics. */
