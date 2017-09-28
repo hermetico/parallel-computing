@@ -7,7 +7,7 @@ extern void square_dgemm (int, double*, double*, double*);
 
 int main (int argc, char **argv)
 {
-    int n=4;
+    int n=7;
 
 
 
@@ -19,7 +19,7 @@ int main (int argc, char **argv)
     {
 
         A[i] = i;
-        B[i] = i;
+        B[i] = i*3;
         C[i] = 0;
     }
     printf(" \n");
