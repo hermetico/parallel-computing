@@ -1,7 +1,7 @@
 
 # CustomDGEMM configuration
 project(CustomDGEMM)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1 -Wall -std=gnu99")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall")
 
 find_package(BLAS)
 find_package(LAPACK)
@@ -15,7 +15,7 @@ target_link_libraries(CustomDGEMM ${lapackblas_libraries})
 
 # BlockedDGEMM configuration
 project(BlockedDGEMM)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1 -Wall -std=gnu99")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall")
 
 find_package(BLAS)
 find_package(LAPACK)
@@ -29,7 +29,7 @@ target_link_libraries(BlockedDGEMM ${lapackblas_libraries})
 
 # TESTS configuration
 project(TESTS C)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu99")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall")
 
 set(SOURCE_FILES dgemm.cpp tests.cpp)
 add_executable(TESTS ${SOURCE_FILES})

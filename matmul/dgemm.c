@@ -1,7 +1,7 @@
 const char* dgemm_desc = "dgemm custom implementation";
 
 #if !defined(BLOCK_K)
-#define BLOCK_K 3
+#define BLOCK_K 50
 #endif
 
 #define min(a,b) (((a)<(b))?(a):(b))
@@ -37,7 +37,7 @@ void gemm_variation1(unsigned int lda, double* A, double* B, double* C)
     for (int i = 0; i < lda; i += BLOCK_K)
     {
         int j = min(BLOCK_K, lda - i );
-        gepp_variation1(lda, A, B, C, i, j);
+        gepp_variation1(lda, B, A, C, i, j);
     }
 }
 
