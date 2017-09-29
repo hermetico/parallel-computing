@@ -9,6 +9,10 @@ if(LAPACK_FOUND AND BLAS_FOUND)
     set(lapackblas_libraries ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
 endif()
 
+set(SOURCE_FILES dgemm.cpp benchmark.cpp)
+add_executable(CustomDGEMM ${SOURCE_FILES})
+target_link_libraries(CustomDGEMM ${lapackblas_libraries})
+
 
 # DetailedCustomDGEMM configuration
 project(DetailedCustomDGEMM)
