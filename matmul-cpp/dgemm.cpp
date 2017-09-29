@@ -17,7 +17,7 @@ using namespace std;
 #define min(a,b) (((a)<(b))?(a):(b))
 
 
-void gepp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int ki, unsigned int ke)
+void gepp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int kc)
 {
 
     for (unsigned int i = 0; i < lda; i++)
@@ -26,7 +26,7 @@ void gepp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int k
         {
             double cij = C[j * lda + i];
 
-            for (unsigned int k = ki; k < ki + ke; k++)
+            for (unsigned int k = 0; k < kc; k++)
             {
                 cij += A[k * lda + i ] * B[j * lda + k];
             }
@@ -38,18 +38,14 @@ void gepp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int k
 void gemm_var1(unsigned int lda, double* A, double* B, double* C)
 {
     /**
-    * Mc, Kc, Nn
-    * lda
-    * A, B, C
-    * Reduces A to column panels, B to row panels
-    * C and lda
-    * A and
+    * Splices the matrices A and B by its K dimension
     */
 
-    for (unsigned int ki = 0; ki < lda; ki += KC)
+    for (unsigned int kci = 0; kci < lda; kci += KC)
     {
-        unsigned int ke = min(KC, lda - ki );
-        gepp_var1(lda, A, B, C, ki, ke);
+        // where Kc ends if were are in an edge
+        unsigned int kce = min(KC, lda - kci );
+        gepp_var1(lda, A + kci * lda, B + kci, C, kce);
     }
 }
 
