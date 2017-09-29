@@ -3,22 +3,39 @@ const char* dgemm_desc = "dgemm custom implementation";
 using namespace std;
 
 #if !defined(KC)
-#define KC 16
+#define KC 75
 #endif
 
 #if !defined(MC)
-#define MC 16
+#define MC 75
 #endif
 
-#if !defined(NC)
-#define NC 2
+#if !defined(NR)
+#define NR 16
 #endif
 
 #define min(a,b) (((a)<(b))?(a):(b))
 
+void do_block(unsigned int lda, double* A, double* B, double* C, unsigned int kc, unsigned int mc, unsigned int nr)
+{
+    for (unsigned int m = 0; m < mc; m++)
+    {
+        for (unsigned int n = 0; n < nr; n++)
+        {
+            double cmn = C[n * lda + m];
+
+            for (unsigned int k = 0; k < kc; k++)
+            {
+                cmn += A[k * lda + m ] * B[n * lda + k];
+            }
+            C[n * lda + m] = cmn;
+        }
+    }
+}
+
 void gebp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int kc, unsigned int mc)
 {
-
+/*
     for (unsigned int m = 0; m < mc; m++)
     {
         for (unsigned int j = 0; j < lda; j++)
@@ -32,30 +49,20 @@ void gebp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int k
             C[j * lda + m] = cmj;
         }
     }
+    */
+    for(unsigned int nri = 0; nri < lda; nri += NR)
+    {
+        // checking mc edges
+        unsigned int nr = min(NR, lda - nri );
+        do_block(lda, A, B + nri * lda, C + nri * lda, kc, mc, nr);
+    }
 
 }
 
 void gepp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int kc)
 {
-
-    /*
-    for (unsigned int i = 0; i < lda; i++)
-    {
-        for (unsigned int j = 0; j < lda; j++)
-        {
-            double cij = C[j * lda + i];
-
-            for (unsigned int k = 0; k < kc; k++)
-            {
-                cij += A[k * lda + i ] * B[j * lda + k];
-            }
-            C[j * lda + i] = cij;
-        }
-    }
-    */
-
     /**
-    * Splices the matrices A and C by its M dimension
+    * Slices the matrices A and C by its M dimension
     */
 
     for(unsigned int mci = 0; mci < lda; mci += MC)
@@ -69,7 +76,7 @@ void gepp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int k
 void gemm_var1(unsigned int lda, double* A, double* B, double* C)
 {
     /**
-    * Splices the matrices A and B by its K dimension
+    * Slices the matrices A and B by its K dimension
     */
 
     for (unsigned int kci = 0; kci < lda; kci += KC)
