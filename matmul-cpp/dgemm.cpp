@@ -7,7 +7,7 @@ using namespace std;
 #endif
 
 #if !defined(MC)
-#define MC 2
+#define MC 16
 #endif
 
 #if !defined(NC)
@@ -16,10 +16,29 @@ using namespace std;
 
 #define min(a,b) (((a)<(b))?(a):(b))
 
+void gebp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int kc, unsigned int mc)
+{
+
+    for (unsigned int m = 0; m < mc; m++)
+    {
+        for (unsigned int j = 0; j < lda; j++)
+        {
+            double cmj = C[j * lda + m];
+
+            for (unsigned int k = 0; k < kc; k++)
+            {
+                cmj += A[k * lda + m ] * B[j * lda + k];
+            }
+            C[j * lda + m] = cmj;
+        }
+    }
+
+}
 
 void gepp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int kc)
 {
 
+    /*
     for (unsigned int i = 0; i < lda; i++)
     {
         for (unsigned int j = 0; j < lda; j++)
@@ -33,6 +52,18 @@ void gepp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int k
             C[j * lda + i] = cij;
         }
     }
+    */
+
+    /**
+    * Splices the matrices A and C by its M dimension
+    */
+
+    for(unsigned int mci = 0; mci < lda; mci += MC)
+    {
+        // checking mc edges
+        unsigned int mc = min(MC, lda - mci );
+        gebp_var1(lda, A + mci, B, C + mci, kc, mc);
+    }
 }
 
 void gemm_var1(unsigned int lda, double* A, double* B, double* C)
@@ -43,9 +74,9 @@ void gemm_var1(unsigned int lda, double* A, double* B, double* C)
 
     for (unsigned int kci = 0; kci < lda; kci += KC)
     {
-        // where Kc ends if were are in an edge
-        unsigned int kce = min(KC, lda - kci );
-        gepp_var1(lda, A + kci * lda, B + kci, C, kce);
+        // checking kc edges
+        unsigned int kc = min(KC, lda - kci );
+        gepp_var1(lda, A + kci * lda, B + kci, C, kc);
     }
 }
 
