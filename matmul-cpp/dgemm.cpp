@@ -1,29 +1,41 @@
 const char* dgemm_desc = "dgemm custom implementation";
+#include <iostream>
+using namespace std;
 
-#if !defined(BLOCK_K)
-#define BLOCK_K 16
+#if !defined(KC)
+#define KC 16
+#endif
+
+#if !defined(MC)
+#define MC 2
+#endif
+
+#if !defined(NC)
+#define NC 2
 #endif
 
 #define min(a,b) (((a)<(b))?(a):(b))
 
 
-void gepp_variation1(int lda, double* A, double* B, double* C, int ki, int ke)
+void gepp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int ki, unsigned int ke)
 {
-    for (int i = 0; i < lda; i++)
+
+    for (unsigned int i = 0; i < lda; i++)
     {
-        for (int j = 0; j < lda; j++)
+        for (unsigned int j = 0; j < lda; j++)
         {
-            double cij = C[i * lda + j];
-            for (int k = ki; k < ki + ke; k++)
+            double cij = C[j * lda + i];
+
+            for (unsigned int k = ki; k < ki + ke; k++)
             {
-                cij += A[i * lda + k ] * B[k * lda + j];
+                cij += A[k * lda + i ] * B[j * lda + k];
             }
-            C[i * lda + j] = cij;
+            C[j * lda + i] = cij;
         }
     }
 }
 
-void gemm_variation1(unsigned int lda, double* A, double* B, double* C)
+void gemm_var1(unsigned int lda, double* A, double* B, double* C)
 {
     /**
     * Mc, Kc, Nn
@@ -34,17 +46,16 @@ void gemm_variation1(unsigned int lda, double* A, double* B, double* C)
     * A and
     */
 
-    for (int i = 0; i < lda; i += BLOCK_K)
+    for (unsigned int ki = 0; ki < lda; ki += KC)
     {
-        int j = min(BLOCK_K, lda - i );
-        gepp_variation1(lda, B, A, C, i, j);
+        unsigned int ke = min(KC, lda - ki );
+        gepp_var1(lda, A, B, C, ki, ke);
     }
 }
 
 void square_dgemm (int lda, double* A, double* B, double* C)
 {
-    gemm_variation1(lda, A, B, C);
-
+    gemm_var1(lda, A, B, C);
 
 }
 

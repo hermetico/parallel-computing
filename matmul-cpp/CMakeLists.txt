@@ -1,7 +1,7 @@
-
+cmake_minimum_required(VERSION 3.8)
 # CustomDGEMM configuration
 project(CustomDGEMM)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp -fPIC -O0 -g3 -ggdb")
 
 find_package(BLAS)
 find_package(LAPACK)
@@ -16,7 +16,7 @@ target_link_libraries(CustomDGEMM ${lapackblas_libraries})
 
 # DetailedCustomDGEMM configuration
 project(DetailedCustomDGEMM)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp -fPIC -O0 -g3 -ggdb")
 
 find_package(BLAS)
 find_package(LAPACK)
@@ -60,7 +60,7 @@ target_link_libraries(DetailedBlockedDGEMM ${lapackblas_libraries})
 
 # TESTS configuration
 project(TESTS C)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp -fPIC -O0 -g3 -ggdb")
 
 set(SOURCE_FILES dgemm.cpp tests.cpp)
 add_executable(TESTS ${SOURCE_FILES})
