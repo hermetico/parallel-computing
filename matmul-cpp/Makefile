@@ -14,7 +14,7 @@ CC = g++
 
 #multi-thread cblas for IMADA i5 3.2 GHz machine
 #use the following line only with a hand compiled atlas
-LIBS = -L/home/hermetico/opt/atlas/lib -lptcblas -latlas -lpthread
+#LIBS = -L/home/hermetico/opt/atlas/lib -lptcblas -latlas -lpthread
 
 #otherwise use
 #LIBS = -lcblas -latlas -lpthread
