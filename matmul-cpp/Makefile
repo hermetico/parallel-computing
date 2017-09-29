@@ -23,7 +23,7 @@ LIBS = -L/home/hermetico/opt/atlas/lib -lptcblas -latlas -lpthread
 #LIBS = -L/home/daniel/atlas/lib -lcblas -latlas
 
 #not optimized Ubuntu version
-#LIBS= -lcblas
+LIBS= -lcblas
 
 
 
@@ -32,20 +32,28 @@ LIBS = -L/home/hermetico/opt/atlas/lib -lptcblas -latlas -lpthread
 
 CFLAGS = -O3
 
-all:	benchmark-naive benchmark-blocked benchmark-blas benchmark detailed-benchmark-blocked detailed-benchmark
+all:	benchmark-naive benchmark-blocked benchmark-blas benchmark detailed-benchmark-blocked detailed-benchmark detailed-benchmark-blas
 
 benchmark-naive: benchmark.o dgemm-naive.o
 	$(CC) -o $@ benchmark.o dgemm-naive.o $(LIBS)
+
 benchmark-blocked: benchmark.o dgemm-blocked.o
 	$(CC) -o $@ benchmark.o dgemm-blocked.o $(LIBS)
+
 benchmark-blas: benchmark.o dgemm-blas.o
 	$(CC) -o $@ benchmark.o dgemm-blas.o $(LIBS)
+
 benchmark: benchmark.o dgemm.o
 	$(CC) -o $@ benchmark.o dgemm.o $(LIBS)
+
 detailed-benchmark-blocked: detailed_benchmark.o dgemm-blocked.o
 	$(CC) -o $@ detailed_benchmark.o dgemm-blocked.o $(LIBS)
+
 detailed-benchmark: detailed_benchmark.o dgemm.o
 	$(CC) -o $@ detailed_benchmark.o dgemm.o $(LIBS)
+
+detailed-benchmark-blas: detailed_benchmark.o dgemm-blas.o
+	$(CC) -o $@ detailed_benchmark.o dgemm-blas.o $(LIBS)
 
 
 %.o: %.cpp
@@ -55,4 +63,4 @@ detailed-benchmark: detailed_benchmark.o dgemm.o
 	$(CC) -c $(CFLAGS) $<
 
 clean:
-	rm -f benchmark-naive benchmark-blocked benchmark-blas benchmark detailed-benchmark-blocked detailed-benchmark *.o
+	rm -f benchmark-naive benchmark-blocked benchmark-blas benchmark detailed-benchmark-blas detailed-benchmark-blocked detailed-benchmark *.o

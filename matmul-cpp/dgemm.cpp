@@ -1,7 +1,7 @@
 const char* dgemm_desc = "dgemm custom implementation";
 
 #if !defined(BLOCK_K)
-#define BLOCK_K 50
+#define BLOCK_K 16
 #endif
 
 #define min(a,b) (((a)<(b))?(a):(b))
