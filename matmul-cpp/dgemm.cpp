@@ -4,21 +4,34 @@ const char* dgemm_desc = "dgemm custom implementation";
 using namespace std;
 
 #if !defined(KC)
-#define KC 100
+#define KC 55
 #endif
 
 #if !defined(MC)
-#define MC 100
+#define MC 33
 #endif
 
 #if !defined(NR)
-#define NR 100
+#define NR 16
 #endif
 
 #define min(a,b) (((a)<(b))?(a):(b))
 
-// packed B
+// packed B and A
 double* BP;
+double* AP;
+
+
+void pack_A(unsigned int lda, double* original, double* packed, unsigned int kc, unsigned int mc )
+{
+	for(unsigned int m = 0; m < mc; m++)
+	{
+		for(unsigned int k = 0; k < kc; k++)
+		{
+			packed[m * kc + k] = original[k * lda + m];
+		}
+	}
+}
 
 void pack_B(unsigned int lda, double* original, double* packed, unsigned int kc )
 {
@@ -31,7 +44,7 @@ void pack_B(unsigned int lda, double* original, double* packed, unsigned int kc 
     }
 }
 
-void do_block(unsigned int lda, double* A, double* BP, double* C, unsigned int kc, unsigned int mc, unsigned int nr)
+void do_block(unsigned int lda, double* AP, double* BP, double* C, unsigned int kc, unsigned int mc, unsigned int nr)
 {
     for (unsigned int m = 0; m < mc; m++)
     {
@@ -41,8 +54,9 @@ void do_block(unsigned int lda, double* A, double* BP, double* C, unsigned int k
 
             for (unsigned int k = 0; k < kc; k++)
             {
-                //cmn += A[k * lda + m ] * B[n * lda + k];
-                cmn += A[k * lda + m ] * BP[n * kc + k];
+                //cmn += A[k * lda + m ] * B[n * lda + k]; // No packing
+                //cmn += A[k * lda + m ] * BP[n * kc + k]; // packing B
+	            cmn += AP[m * kc + k ] * BP[n * kc + k];  // packing B and A
             }
             C[n * lda + m] = cmn;
         }
@@ -52,13 +66,14 @@ void do_block(unsigned int lda, double* A, double* BP, double* C, unsigned int k
 void gebp_var1(unsigned int lda, double* A, double* BP, double* C, unsigned int kc, unsigned int mc)
 {
 
-
+	// packing A
+	pack_A(lda, A, AP, kc, mc);
     for(unsigned int nri = 0; nri < lda; nri += NR)
     {
         // checking nr edges
         unsigned int nr = min(NR, lda - nri );
         //do_block(lda, A, B + nri * lda, C + nri * lda, kc, mc, nr);
-        do_block(lda, A, BP + nri * kc, C + nri * lda, kc, mc, nr);
+        do_block(lda, AP, BP + nri * kc, C + nri * lda, kc, mc, nr);
     }
 
 }
@@ -97,8 +112,12 @@ void square_dgemm (int lda, double* A, double* B, double* C)
 {
     // allocates BP for its possible maximum size
     BP = (double*) malloc (lda * KC * sizeof(double));
-    gemm_var1(lda, A, B, C);
-    free(BP);
+	AP = (double*) malloc (MC * KC * sizeof(double));
+
+	gemm_var1(lda, A, B, C);
+
+	free(BP);
+	free(AP);
 
 }
 
