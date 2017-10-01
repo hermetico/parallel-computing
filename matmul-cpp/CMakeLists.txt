@@ -14,6 +14,22 @@ add_executable(CustomDGEMM ${SOURCE_FILES})
 target_link_libraries(CustomDGEMM ${lapackblas_libraries})
 
 
+# DetailedNaive configuration
+project(DetailedNaive)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp -fPIC -O0 -g3 -ggdb")
+
+find_package(BLAS)
+find_package(LAPACK)
+if(LAPACK_FOUND AND BLAS_FOUND)
+    set(lapackblas_libraries ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+endif()
+
+
+set(SOURCE_FILES dgemm-naive.cpp detailed_benchmark.cpp)
+add_executable(DetailedNaive ${SOURCE_FILES})
+target_link_libraries(DetailedNaive ${lapackblas_libraries})
+
+
 # DetailedCustomDGEMM configuration
 project(DetailedCustomDGEMM)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp -fPIC -O0 -g3 -ggdb")
