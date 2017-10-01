@@ -32,7 +32,7 @@ LIBS= -lcblas
 
 CFLAGS = -O3
 
-all:	benchmark-naive benchmark-blocked benchmark-blas benchmark detailed-benchmark-blocked detailed-benchmark detailed-benchmark-blas
+all:	benchmark-naive benchmark-blocked benchmark-blas benchmark detailed-benchmark-blocked detailed-benchmark detailed-benchmark-blas tests
 
 benchmark-naive: benchmark.o dgemm-naive.o
 	$(CC) -o $@ benchmark.o dgemm-naive.o $(LIBS)
@@ -55,6 +55,9 @@ detailed-benchmark: detailed_benchmark.o dgemm.o
 detailed-benchmark-blas: detailed_benchmark.o dgemm-blas.o
 	$(CC) -o $@ detailed_benchmark.o dgemm-blas.o $(LIBS)
 
+tests: tests.o dgemm.o
+	$(CC) -o $@ tests.o dgemm.o $(LIBS)
+
 
 %.o: %.cpp
 	$(CC) -c $(CFLAGS) $<
@@ -63,4 +66,4 @@ detailed-benchmark-blas: detailed_benchmark.o dgemm-blas.o
 	$(CC) -c $(CFLAGS) $<
 
 clean:
-	rm -f benchmark-naive benchmark-blocked benchmark-blas benchmark detailed-benchmark-blas detailed-benchmark-blocked detailed-benchmark *.o
+	rm -f benchmark-naive benchmark-blocked benchmark-blas benchmark detailed-benchmark-blas detailed-benchmark-blocked detailed-benchmark tests *.o
