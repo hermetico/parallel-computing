@@ -1,0 +1,24 @@
+1a.) https://perf.wiki.kernel.org
+Example:
+
+perf stat ./benchmark-blas
+perf stat -r dTLB-load-misses ./benchmark-blas
+perf stat -e dTLB-load-misses ./benchmark-naive
+
+1b.) Systemtap
+
+2a.) https://godbolt.org/
+
+2b.) gcc -S ...
+
+3.) SSE / AVX / Intrinsics
+
+See code Example
+
+-> test2.c (add 2 vectors)
+-> test3.c (aligning)
+-> test4.c (performance test)
+-> test-inner.c (inner product, loop unrolling)
+
+-> test.c (code fragment for inner block mult (2x2))
+
