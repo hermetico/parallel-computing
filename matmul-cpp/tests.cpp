@@ -9,7 +9,7 @@ extern void square_dgemm (int, double*, double*, double*);
 
 int main (int argc, char **argv)
 {
-    int n=3;
+    int n=15;
 
 
 

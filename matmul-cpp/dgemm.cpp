@@ -1,18 +1,20 @@
 const char* dgemm_desc = "dgemm custom implementation";
 #include <iostream>
-#include <stdlib.h>     /* malloc, free, rand */
+#include <stdlib.h>
+#include <immintrin.h>
+
 using namespace std;
 
 #if !defined(KC)
-#define KC 55
+#define KC 100
 #endif
 
 #if !defined(MC)
-#define MC 33
+#define MC 100
 #endif
 
 #if !defined(NR)
-#define NR 16
+#define NR 80
 #endif
 
 #define min(a,b) (((a)<(b))?(a):(b))
@@ -46,18 +48,51 @@ void pack_B(unsigned int lda, double* original, double* packed, unsigned int kc 
 
 void do_block(unsigned int lda, double* AP, double* BP, double* C, unsigned int kc, unsigned int mc, unsigned int nr)
 {
+
+	double __attribute__((aligned(32))) accp[4]; //packed accumulator
+
     for (unsigned int m = 0; m < mc; m++)
     {
         for (unsigned int n = 0; n < nr; n++)
         {
+	        unsigned int mkc = m * kc, nkc = n * kc;
             double cmn = C[n * lda + m];
 
-            for (unsigned int k = 0; k < kc; k++)
-            {
-                //cmn += A[k * lda + m ] * B[n * lda + k]; // No packing
-                //cmn += A[k * lda + m ] * BP[n * kc + k]; // packing B
-	            cmn += AP[m * kc + k ] * BP[n * kc + k];  // packing B and A
-            }
+	        unsigned int k = 0;
+
+	        /*
+	        cout << "kc " << kc << endl;
+			cout << "mc " << mc << endl;
+			cout << "nr " << nr << endl;
+	         */
+	        //TODO fix this hack!!
+			if ( kc > 4 ){
+				__m256d acc = _mm256_setzero_pd();
+
+				for ( k = 0; k < kc - 4; k += 4)
+				{
+					//cout << "k " << k << endl;
+					unsigned int mkck = mkc + k;
+					unsigned int nkck = nkc + k;
+
+					__m256d a = _mm256_loadu_pd(&AP[mkck]);
+					__m256d b = _mm256_loadu_pd(&BP[nkck]);
+
+
+					acc = _mm256_add_pd(acc, _mm256_mul_pd(a, b));
+
+
+				}
+				_mm256_store_pd(&accp[0], acc);
+				cmn += accp[0] + accp[1] + accp[2]+ accp[3];
+			}
+			//cout << "after loop " << endl;
+	        // in case there are remaining cells
+	        for (k; k < kc; k++)
+	        {
+		        cmn += AP[mkc + k] * BP[nkc + k];
+	        }
+
             C[n * lda + m] = cmn;
         }
     }
@@ -111,8 +146,8 @@ void gemm_var1(unsigned int lda, double* A, double* B, double* C)
 void square_dgemm (int lda, double* A, double* B, double* C)
 {
     // allocates BP for its possible maximum size
-    BP = (double*) malloc (lda * KC * sizeof(double));
-	AP = (double*) malloc (MC * KC * sizeof(double));
+    BP = (double*) aligned_alloc (32, lda * KC * sizeof(double));
+	AP = (double*) aligned_alloc (32, MC * KC * sizeof(double));
 
 	gemm_var1(lda, A, B, C);
 

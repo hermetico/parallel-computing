@@ -32,7 +32,7 @@ target_link_libraries(DetailedNaive ${lapackblas_libraries})
 
 # DetailedCustomDGEMM configuration
 project(DetailedCustomDGEMM)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp -fPIC -O0 -g3 -ggdb")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp -fPIC -O0 -g3 -ggdb -mavx")
 
 find_package(BLAS)
 find_package(LAPACK)
