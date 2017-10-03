@@ -17,11 +17,15 @@ using namespace std;
 #define NR 80
 #endif
 
+
+
 #define min(a,b) (((a)<(b))?(a):(b))
 
 // packed B and A
 double* BP;
 double* AP;
+// packed accumulator
+double __attribute__((aligned(32))) ACCP[4];
 
 
 void pack_A(unsigned int lda, double* original, double* packed, unsigned int kc, unsigned int mc )
@@ -30,7 +34,10 @@ void pack_A(unsigned int lda, double* original, double* packed, unsigned int kc,
 	{
 		for(unsigned int k = 0; k < kc; k++)
 		{
-			packed[m * kc + k] = original[k * lda + m];
+            unsigned int mkc, klda;
+            mkc = m * kc;
+            klda = k * lda;
+			packed[mkc + k] = original[klda + m];
 		}
 	}
 }
@@ -41,15 +48,16 @@ void pack_B(unsigned int lda, double* original, double* packed, unsigned int kc 
     {
         for(unsigned int k = 0; k < kc; k++)
         {
-            packed[i * kc + k] = original[i * lda + k];
+            unsigned int ikc, ilda;
+            ikc = i * kc;
+            ilda = i * lda;
+            packed[ikc + k] = original[ilda + k];
         }
     }
 }
 
 void do_block(unsigned int lda, double* AP, double* BP, double* C, unsigned int kc, unsigned int mc, unsigned int nr)
 {
-
-	double __attribute__((aligned(32))) accp[4]; //packed accumulator
 
     for (unsigned int m = 0; m < mc; m++)
     {
@@ -77,14 +85,15 @@ void do_block(unsigned int lda, double* AP, double* BP, double* C, unsigned int 
 
 					__m256d a = _mm256_loadu_pd(&AP[mkck]);
 					__m256d b = _mm256_loadu_pd(&BP[nkck]);
-
+                    //__m256d a = _mm256_set_pd(AP[mkck], AP[mkck + 1], AP[mkck + 2], AP[mkck+ 3]);
+                    //__m256d b = _mm256_set_pd(BP[nkck], BP[nkck + 1],BP[nkck + 2], BP[nkck+ 3]);
 
 					acc = _mm256_add_pd(acc, _mm256_mul_pd(a, b));
 
 
 				}
-				_mm256_store_pd(&accp[0], acc);
-				cmn += accp[0] + accp[1] + accp[2]+ accp[3];
+				_mm256_store_pd(&ACCP[0], acc);
+				cmn += ACCP[0] + ACCP[1] + ACCP[2]+ ACCP[3];
 			}
 			//cout << "after loop " << endl;
 	        // in case there are remaining cells
