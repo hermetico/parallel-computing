@@ -6,15 +6,15 @@ const char* dgemm_desc = "dgemm custom implementation";
 using namespace std;
 
 #if !defined(KC)
-#define KC 100
+#define KC 120
 #endif
 
 #if !defined(MC)
-#define MC 100
+#define MC 24
 #endif
 
 #if !defined(NR)
-#define NR 80
+#define NR 24
 #endif
 
 #define min(a,b) (((a)<(b))?(a):(b))
