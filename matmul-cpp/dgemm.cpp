@@ -4,15 +4,15 @@ const char* dgemm_desc = "dgemm custom implementation";
 using namespace std;
 
 #if !defined(KC)
-#define KC 55
+#define KC 120
 #endif
 
 #if !defined(MC)
-#define MC 33
+#define MC 20
 #endif
 
 #if !defined(NR)
-#define NR 16
+#define NR 20
 #endif
 
 #define min(a,b) (((a)<(b))?(a):(b))
@@ -20,17 +20,22 @@ using namespace std;
 // packed B and A
 double* BP;
 double* AP;
+double* CAUX;
 
 
 void pack_A(unsigned int lda, double* original, double* packed, unsigned int kc, unsigned int mc )
 {
-	for(unsigned int m = 0; m < mc; m++)
+
+	for(unsigned int k = 0; k < kc; k++)
 	{
-		for(unsigned int k = 0; k < kc; k++)
+		for(unsigned int m = 0; m < mc; m++)
 		{
-			packed[m * kc + k] = original[k * lda + m];
+			//packed[m * kc + k] = original[k * lda + m]; // row major
+			packed[k * mc + m] = original[k * lda + m]; // column major
+			//cout << "packed["<<k * mc + m<<"]//original["<<k * lda + m<<"]=" <<original[k * lda + m]<<endl;
 		}
 	}
+	//cout <<endl;
 }
 
 void pack_B(unsigned int lda, double* original, double* packed, unsigned int kc )
@@ -46,19 +51,22 @@ void pack_B(unsigned int lda, double* original, double* packed, unsigned int kc 
 
 void do_block(unsigned int lda, double* AP, double* BP, double* C, unsigned int kc, unsigned int mc, unsigned int nr)
 {
-    for (unsigned int m = 0; m < mc; m++)
-    {
-        for (unsigned int n = 0; n < nr; n++)
-        {
-            double cmn = C[n * lda + m];
 
-            for (unsigned int k = 0; k < kc; k++)
-            {
-                //cmn += A[k * lda + m ] * B[n * lda + k]; // No packing
-                //cmn += A[k * lda + m ] * BP[n * kc + k]; // packing B
-	            cmn += AP[m * kc + k ] * BP[n * kc + k];  // packing B and A
+
+	for (unsigned int m = 0; m < mc; m++)
+	{
+		for (unsigned int n = 0; n < nr; n++)
+		{
+
+		    double cmn = C[n * lda + m];
+			for (unsigned int k = 0; k < kc; k++)
+	        {
+
+	            cmn += AP[k * mc + m ] * BP[n * kc + k];
+
             }
             C[n * lda + m] = cmn;
+
         }
     }
 }
@@ -72,7 +80,6 @@ void gebp_var1(unsigned int lda, double* A, double* BP, double* C, unsigned int 
     {
         // checking nr edges
         unsigned int nr = min(NR, lda - nri );
-        //do_block(lda, A, B + nri * lda, C + nri * lda, kc, mc, nr);
         do_block(lda, AP, BP + nri * kc, C + nri * lda, kc, mc, nr);
     }
 
@@ -90,6 +97,8 @@ void gepp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int k
     {
         // checking mc edges
         unsigned int mc = min(MC, lda - mci );
+
+	    //cout << "mci, mc   " << mci<<","<<mc<<endl;
         gebp_var1(lda, A + mci, BP, C + mci, kc, mc);
     }
 }
@@ -104,6 +113,7 @@ void gemm_var1(unsigned int lda, double* A, double* B, double* C)
     {
         // checking kc edges
         unsigned int kc = min(KC, lda - kci );
+	    //cout << "kci, kc   " << kci<<","<<kc<<endl;
         gepp_var1(lda, A + kci * lda, B + kci, C, kc);
     }
 }
@@ -113,6 +123,7 @@ void square_dgemm (int lda, double* A, double* B, double* C)
     // allocates BP for its possible maximum size
     BP = (double*) malloc (lda * KC * sizeof(double));
 	AP = (double*) malloc (MC * KC * sizeof(double));
+	CAUX = (double*) malloc (NR * MC * sizeof(double));
 
 	gemm_var1(lda, A, B, C);
 

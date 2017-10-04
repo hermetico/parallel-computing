@@ -59,8 +59,15 @@ add_executable(DetailedBlockedDGEMM ${SOURCE_FILES})
 target_link_libraries(DetailedBlockedDGEMM ${lapackblas_libraries})
 
 # TESTS configuration
-project(TESTS C)
+project(TESTS)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp -fPIC -O0 -g3 -ggdb")
 
 set(SOURCE_FILES dgemm.cpp tests.cpp)
 add_executable(TESTS ${SOURCE_FILES})
+
+# TESTS configuration
+project(TESTS_NAIVE)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp -fPIC -O0 -g3 -ggdb")
+
+set(SOURCE_FILES dgemm-naive.cpp tests.cpp)
+add_executable(TESTS_NAIVE ${SOURCE_FILES})

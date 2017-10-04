@@ -9,7 +9,7 @@ extern void square_dgemm (int, double*, double*, double*);
 
 int main (int argc, char **argv)
 {
-    int n=3;
+    int n=5;
 
 
 
@@ -17,13 +17,24 @@ int main (int argc, char **argv)
     double* B = (double*) malloc (n * n * sizeof(double));
     double* C = (double*) malloc (n * n * sizeof(double));
 
-    for(int i=0; i < n * n; i++)
+    for(int i=0; i <  n ; i++)
     {
-
-        A[i] = (double)i;
-        B[i] = (double)i;
-        C[i] = (double)0;
+        for(int j=0; j <  n ; j++) {
+            A[i*n+j] = (double) j*n + i + 1;
+            B[i*n+j] = (double) j*n + i +1;
+            C[i*n+j] = (double) 0;
+        }
     }
+
+
+    for (int i=0; i<n; i++) {
+        for (int j = 0; j < n; j++) {
+            cout <<  A[i +j*n] <<", ";
+        }
+        cout << endl;
+    }
+
+
     cout << endl ;
     square_dgemm (n, A, B, C);
     for (int i=0; i<n; i++) {
