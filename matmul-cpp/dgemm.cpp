@@ -8,11 +8,15 @@ using namespace std;
 #endif
 
 #if !defined(MC)
-#define MC 20
+#define MC 120
 #endif
 
 #if !defined(NR)
-#define NR 20
+#define NR 4
+#endif
+
+#if !defined(MR)
+#define MR 4
 #endif
 
 #define min(a,b) (((a)<(b))?(a):(b))
@@ -55,18 +59,14 @@ void do_block(unsigned int lda, double* AP, double* BP, double* C, unsigned int 
 
 	for (unsigned int m = 0; m < mc; m++)
 	{
-		for (unsigned int n = 0; n < nr; n++)
+		for (unsigned int k = 0; k < kc; k++)
 		{
-
-		    double cmn = C[n * lda + m];
-			for (unsigned int k = 0; k < kc; k++)
-	        {
-
-	            cmn += AP[k * mc + m ] * BP[n * kc + k];
+			float ap = AP[k * mc + m ];
+			for (unsigned int n = 0; n < nr; n++)
+			{
+				C[n * lda + m] += ap * BP[n * kc + k];
 
             }
-            C[n * lda + m] = cmn;
-
         }
     }
 }
