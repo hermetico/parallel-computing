@@ -61,7 +61,7 @@ void do_block(unsigned int lda, double* AP, double* BP, double* C, unsigned int 
 	{
 		for (unsigned int k = 0; k < kc; k++)
 		{
-			float ap = AP[k * mc + m ];
+			double ap = AP[k * mc + m ];
 			for (unsigned int n = 0; n < nr; n++)
 			{
 				C[n * lda + m] += ap * BP[n * kc + k];
