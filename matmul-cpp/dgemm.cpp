@@ -25,6 +25,7 @@ using namespace std;
 // packed B and A
 double* BP;
 double* AP;
+double* CP;
 
 
 static void pack_A(unsigned int lda, double* original, double* packed, unsigned int kc, unsigned int mc )
@@ -49,19 +50,41 @@ static void pack_B(unsigned int lda, double* original, double* packed, unsigned 
 	}
 }
 
-static void do_kernel(unsigned int lda, double* AP, double* BP, double* CP, unsigned int kc, unsigned int mr, unsigned int nr)
+static void pack_C(unsigned int lda, double* original, double* packed, unsigned int mr, unsigned int nr )
+{
+	for(unsigned int n = 0; n < nr; n++)
+	{
+		for(unsigned int m = 0; m < mr; m++)
+		{
+			packed[n * mr + m] = original[n * lda + m];
+		}
+	}
+}
+
+static void unpack_C(unsigned int lda, double* original, double* packed, unsigned int mr, unsigned int nr )
+{
+	for(unsigned int n = 0; n < nr; n++)
+	{
+		for(unsigned int m = 0; m < mr; m++)
+		{
+			original[n * lda + m] = packed[n * mr + m];
+		}
+	}
+}
+
+static void do_kernel(double* AP, double* BP, double* CP, unsigned int kc, unsigned int mr, unsigned int nr)
 {
 	for (unsigned int m = 0; m < mr; m++)
 	{
 		for (unsigned int n = 0; n < nr; n++)
 		{
-			double cmn = CP[n * lda + m];
+			double cmn = CP[n * mr + m];
 
 			for (unsigned int k = 0; k < kc; k++)
 			{
 				cmn += AP[m * kc + k ] * BP[n * kc + k];
 			}
-			CP[n * lda + m] = cmn;
+			CP[n * mr + m] = cmn;
 		}
 	}
 }
@@ -72,7 +95,12 @@ static void do_block(unsigned int lda, double* AP, double* BP, double* C, unsign
 	{
 		// checking mr edges
 		unsigned int mr = min(MR, mc - mri );
-		do_kernel(lda, AP + mri * kc, BP, C + mri, kc, mr, nr);
+
+		pack_C(lda, C + mri, CP, mr, nr);
+
+		do_kernel(AP + mri * kc, BP, CP, kc, mr, nr);
+
+		unpack_C(lda, C + mri, CP, mr, nr);
 	}
 }
 
@@ -80,7 +108,7 @@ static void gebp_var1(unsigned int lda, double* A, double* BP, double* C, unsign
 {
 
 	// packing A
-	pack_A(lda, A, AP, kc, mc);
+
 	for(unsigned int nri = 0; nri < lda; nri += NR)
 	{
 		// checking nr edges
@@ -90,19 +118,22 @@ static void gebp_var1(unsigned int lda, double* A, double* BP, double* C, unsign
 
 }
 
-static void gepp_var1(unsigned int lda, double* A, double* B, double* C, unsigned int kc)
+static void gepp_var1(unsigned int lda, double* A, double* BP, double* C, unsigned int kc)
 {
 	/**
 	* Slices the matrices A and C by its M dimension
 	*/
 
 	// packing B
-	pack_B(lda, B, BP, kc);
+
 	for(unsigned int mci = 0; mci < lda; mci += MC)
 	{
 		// checking mc edges
 		unsigned int mc = min(MC, lda - mci );
-		gebp_var1(lda, A + mci, BP, C + mci, kc, mc);
+
+		pack_A(lda, A + mci, AP, kc, mc);
+
+		gebp_var1(lda, AP, BP, C + mci, kc, mc);
 	}
 }
 
@@ -116,7 +147,10 @@ static void gemm_var1(unsigned int lda, double* A, double* B, double* C)
 	{
 		// checking kc edges
 		unsigned int kc = min(KC, lda - kci );
-		gepp_var1(lda, A + kci * lda, B + kci, C, kc);
+
+		pack_B(lda, B + kci, BP, kc);
+
+		gepp_var1(lda, A + kci * lda, BP, C, kc);
 	}
 }
 
@@ -126,6 +160,7 @@ void square_dgemm (int lda, double* A, double* B, double* C)
 	BP = (double*) malloc (lda * KC * sizeof(double));
 	// allocates AP for its possible maximum size
 	AP = (double*) malloc (MC * KC * sizeof(double));
+	CP = (double*) malloc (MC * NR * sizeof(double));
 
 	gemm_var1(lda, A, B, C);
 
