@@ -86,17 +86,17 @@ static void compute_kernel_mn84(double* ap, double* bp, double* cp, unsigned int
 
 	__m256d bx;
 
-	__m256d cx0y0 = _mm256_loadu_pd(&cp[0]);
-	__m256d cx0y1 = _mm256_loadu_pd(&cp[4]);
+	__m256d cx0y0 = _mm256_load_pd(&cp[0]);
+	__m256d cx0y1 = _mm256_load_pd(&cp[4]);
 
-	__m256d cx1y0 = _mm256_loadu_pd(&cp[8]);
-	__m256d cx1y1 = _mm256_loadu_pd(&cp[12]);
+	__m256d cx1y0 = _mm256_load_pd(&cp[8]);
+	__m256d cx1y1 = _mm256_load_pd(&cp[12]);
 
-	__m256d cx2y0 = _mm256_loadu_pd(&cp[16]);
-	__m256d cx2y1 = _mm256_loadu_pd(&cp[20]);
+	__m256d cx2y0 = _mm256_load_pd(&cp[16]);
+	__m256d cx2y1 = _mm256_load_pd(&cp[20]);
 
-	__m256d cx3y0 = _mm256_loadu_pd(&cp[24]);
-	__m256d cx3y1 = _mm256_loadu_pd(&cp[28]);
+	__m256d cx3y0 = _mm256_load_pd(&cp[24]);
+	__m256d cx3y1 = _mm256_load_pd(&cp[28]);
 
 	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
 	{
@@ -123,14 +123,14 @@ static void compute_kernel_mn84(double* ap, double* bp, double* cp, unsigned int
 
 	}
 
-	_mm256_storeu_pd(&cp[0], cx0y0);
-	_mm256_storeu_pd(&cp[4], cx0y1);
-	_mm256_storeu_pd(&cp[8], cx1y0);
-	_mm256_storeu_pd(&cp[12], cx1y1);
-	_mm256_storeu_pd(&cp[16], cx2y0);
-	_mm256_storeu_pd(&cp[20], cx2y1);
-	_mm256_storeu_pd(&cp[24], cx3y0);
-	_mm256_storeu_pd(&cp[28], cx3y1);
+	_mm256_store_pd(&cp[0], cx0y0);
+	_mm256_store_pd(&cp[4], cx0y1);
+	_mm256_store_pd(&cp[8], cx1y0);
+	_mm256_store_pd(&cp[12], cx1y1);
+	_mm256_store_pd(&cp[16], cx2y0);
+	_mm256_store_pd(&cp[20], cx2y1);
+	_mm256_store_pd(&cp[24], cx3y0);
+	_mm256_store_pd(&cp[28], cx3y1);
 
 }
 
@@ -141,10 +141,10 @@ static void compute_kernel_mn4(double* ap, double* bp, double* cp, unsigned int 
 
 	__m256d bx;
 
-	__m256d cx0 = _mm256_loadu_pd(&cp[0]);
-	__m256d cx1 = _mm256_loadu_pd(&cp[4]);
-	__m256d cx2 = _mm256_loadu_pd(&cp[8]);
-	__m256d cx3 = _mm256_loadu_pd(&cp[12]);
+	__m256d cx0 = _mm256_load_pd(&cp[0]);
+	__m256d cx1 = _mm256_load_pd(&cp[4]);
+	__m256d cx2 = _mm256_load_pd(&cp[8]);
+	__m256d cx3 = _mm256_load_pd(&cp[12]);
 
 	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
 	{
@@ -161,17 +161,93 @@ static void compute_kernel_mn4(double* ap, double* bp, double* cp, unsigned int 
 
 		bx = _mm256_set1_pd(bp[3 * kc]);
 		cx3 = _mm256_add_pd(cx3, _mm256_mul_pd(ay0, bx));
-
 	}
 
-	_mm256_storeu_pd(&cp[0], cx0);
-	_mm256_storeu_pd(&cp[4], cx1);
-	_mm256_storeu_pd(&cp[8], cx2);
-	_mm256_storeu_pd(&cp[12], cx3);
-
+	_mm256_store_pd(&cp[0], cx0);
+	_mm256_store_pd(&cp[4], cx1);
+	_mm256_store_pd(&cp[8], cx2);
+	_mm256_store_pd(&cp[12], cx3);
 
 }
 
+
+static void compute_kernel_mn43(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
+{
+
+	__m256d ay0;
+
+	__m256d bx;
+
+	__m256d cx0 = _mm256_load_pd(&cp[0]);
+	__m256d cx1 = _mm256_load_pd(&cp[4]);
+	__m256d cx2 = _mm256_load_pd(&cp[8]);
+
+	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
+	{
+		ay0 = _mm256_loadu_pd(&ap[0]);
+		// one element of B per column
+		bx = _mm256_set1_pd(bp[0]);
+		cx0 = _mm256_add_pd(cx0, _mm256_mul_pd(ay0, bx));
+
+		bx = _mm256_set1_pd(bp[kc]);
+		cx1 = _mm256_add_pd(cx1, _mm256_mul_pd(ay0, bx));
+
+		bx = _mm256_set1_pd(bp[2 * kc]);
+		cx2 = _mm256_add_pd(cx2, _mm256_mul_pd(ay0, bx));
+	}
+
+	_mm256_store_pd(&cp[0], cx0);
+	_mm256_store_pd(&cp[4], cx1);
+	_mm256_store_pd(&cp[8], cx2);
+
+}
+static void compute_kernel_mn42(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
+{
+
+	__m256d ay0;
+
+	__m256d bx;
+
+	__m256d cx0 = _mm256_load_pd(&cp[0]);
+	__m256d cx1 = _mm256_load_pd(&cp[4]);
+
+	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
+	{
+		ay0 = _mm256_loadu_pd(&ap[0]);
+		// one element of B per column
+		bx = _mm256_set1_pd(bp[0]);
+		cx0 = _mm256_add_pd(cx0, _mm256_mul_pd(ay0, bx));
+
+		bx = _mm256_set1_pd(bp[kc]);
+		cx1 = _mm256_add_pd(cx1, _mm256_mul_pd(ay0, bx));
+	}
+
+	_mm256_store_pd(&cp[0], cx0);
+	_mm256_store_pd(&cp[4], cx1);
+
+}
+
+static void compute_kernel_mn41(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
+{
+
+	__m256d ay0;
+
+	__m256d bx;
+
+	__m256d cx0 = _mm256_load_pd(&cp[0]);
+
+	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
+	{
+		ay0 = _mm256_loadu_pd(&ap[0]);
+		// one element of B per column
+		bx = _mm256_set1_pd(bp[0]);
+		cx0 = _mm256_add_pd(cx0, _mm256_mul_pd(ay0, bx));
+
+	}
+
+	_mm256_store_pd(&cp[0], cx0);
+
+}
 static void compute_fallback_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc,  unsigned int mr, unsigned int nr){
 
 	for (unsigned int k = 0; k < kc; k++)
@@ -198,10 +274,18 @@ static void do_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsig
 
 			switch(nr)
 			{
+				case 1:
+					compute_kernel_mn41(ap, bp, cp, kc, mc);
+					break;
+				case 2:
+					compute_kernel_mn42(ap, bp, cp, kc, mc);
+					break;
+				case 3:
+					compute_kernel_mn43(ap, bp, cp, kc, mc);
+					break;
 				case 4:
 					compute_kernel_mn4(ap, bp, cp, kc, mc);
 					break;
-
 				default:
 					compute_fallback_kernel(ap , bp, CP, kc, mc, mr, nr);
 			}
@@ -294,11 +378,11 @@ static void gemm_var1(unsigned int lda, double* a, double* b, double* c)
 void square_dgemm (int lda, double* A, double* B, double* C)
 {
 	// allocates BP for its possible maximum size
-	BP = (double*) malloc (lda * KC * sizeof(double));
+	BP = (double*) _mm_malloc (lda * KC * sizeof(double), 32);
 	// allocates AP for its possible maximum size
-	AP = (double*) malloc (MC * KC * sizeof(double));
+	AP = (double*) _mm_malloc (MC * KC * sizeof(double), 32);
 	// allocates CP for its possible maximum size
-	CP = (double*) malloc (MC * NR * sizeof(double));
+	CP = (double*) _mm_malloc (MC * NR * sizeof(double), 32);
 
 	gemm_var1(lda, A, B, C);
 
