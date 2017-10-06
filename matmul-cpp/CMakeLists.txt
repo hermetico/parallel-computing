@@ -80,3 +80,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp -fPIC -O0 -g3 -ggdb"
 
 set(SOURCE_FILES dgemm.cpp tests.cpp)
 add_executable(TESTS ${SOURCE_FILES})
+
+# TESTS naive configuration
+project(TESTS_NAIVE)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp -fPIC -O0 -g3 -ggdb")
+
+set(SOURCE_FILES dgemm-naive.cpp tests.cpp)
+add_executable(TESTS_NAIVE ${SOURCE_FILES})
