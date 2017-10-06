@@ -119,7 +119,7 @@ static void unpack_C(unsigned int lda, double* original, double* packed, unsigne
 	//cout << endl;
 }
 
-static void do_kernel(unsigned int lda, double* AP, double* BP, double* CP, unsigned int kc, unsigned int mc,  unsigned int mr, unsigned int nr)
+static void do_kernel(double* AP, double* BP, double* CP, unsigned int kc, unsigned int mc,  unsigned int mr, unsigned int nr)
 {
 
 	/*for (unsigned int m = 0; m < mr; m++)
@@ -160,7 +160,7 @@ static void do_kernel(unsigned int lda, double* AP, double* BP, double* CP, unsi
 			for (unsigned int m = 0; m < mr; m++)
 			{
 				//cout << n * lda + m << " < -- AP[" << k * mr + m << "] "<< AP[k * mr + m]<<  endl;
-				CP[n * lda + m] += AP[k * mc + m] * fixedB;
+				CP[n * mr + m] += AP[k * mc + m] * fixedB;
 			}
 		}
 	}
@@ -179,11 +179,11 @@ static void do_block(unsigned int lda, double* AP, double* BP, double* c, unsign
 		// checking mr edges
 		unsigned int mr = min(MR, mc - mri );
 
-		//pack_C(lda, C + mri, CP, mr, nr);
+		pack_C(lda, c + mri, CP, mr, nr);
 
-		do_kernel(lda, AP + mri, BP, c + mri, kc, mc, mr, nr);
+		do_kernel(AP + mri, BP, CP, kc, mc, mr, nr);
 
-		//unpack_C(lda, C + mri, CP, mr, nr);
+		unpack_C(lda, c + mri, CP, mr, nr);
 	}
 }
 
