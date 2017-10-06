@@ -30,7 +30,7 @@ LIBS= -lcblas
 #not optimized Ubuntu version
 #LIBS= -lcblas
 
-CFLAGS = -O3
+CFLAGS = -O3 -mavx
 
 all:	benchmark-naive benchmark-blocked benchmark-blas benchmark detailed-benchmark-blocked detailed-benchmark detailed-benchmark-blas detailed-benchmark-naive tests
 

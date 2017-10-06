@@ -1,6 +1,7 @@
 const char* dgemm_desc = "dgemm custom implementation";
 #include <iostream>
 #include <stdlib.h>	 /* malloc, free, rand */
+#include <immintrin.h>
 using namespace std;
 
 #if !defined(KC)
@@ -20,23 +21,6 @@ using namespace std;
 #endif
 
 
-/*
-#if !defined(KC)
-#define KC 5
-#endif
-
-#if !defined(MC)
-#define MC 4
-#endif
-
-#if !defined(NR)
-#define NR 3
-#endif
-
-#if !defined(MR)
-#define MR 2
-#endif
-*/
 #define min(a,b) (((a)<(b))?(a):(b))
 
 // packed B and A
@@ -47,33 +31,12 @@ double* CP;
 
 static void pack_A(unsigned int lda, double* original, double* packed, unsigned int kc, unsigned int mc )
 {
-	/*
-	// uses zero padding
-	cout << "pack A " <<endl;
-	unsigned int k, m;
-	for( k = 0; k < kc; k++)
-	{
-		for(m = 0; m < mc; m++)
-		{
-			packed[k * MC + m] = original[k * lda + m];
-			cout << k * MC + m <<" -- "<< k * lda + m << " : "<< original[k * lda + m] <<endl;
-		}
-		for(m; m<MC; m++)
-		{
-			cout << k * MC + m <<" -- "<< 0 <<endl;
-			packed[k * MC + m] = 0;
-		}
 
-	}
-
-	cout << endl;
-	*/
 	for( unsigned int k = 0; k < kc; k++)
 	{
 		for(unsigned int m = 0; m < mc; m++)
 		{
 			packed[k * mc + m] = original[k * lda + m];
-			//cout << k * mc + m <<" -- "<< k * lda + m << " : "<< original[k * lda + m] <<endl;
 		}
 
 	}
@@ -92,83 +55,178 @@ static void pack_B(unsigned int lda, double* original, double* packed, unsigned 
 
 static void pack_C(unsigned int lda, double* original, double* packed, unsigned int mr, unsigned int nr )
 {
-	//cout << "pack C" << endl;
+
 	for(unsigned int n = 0; n < nr; n++)
 	{
 		for(unsigned int m = 0; m < mr; m++)
 		{
 			packed[n * mr + m] = original[n * lda + m];
-			//cout <<n * mr + m <<" -- "<< n * lda + m << " : "<< original[n * lda + m] <<endl;
 		}
 	}
-	//cout << endl;
 }
 
 static void unpack_C(unsigned int lda, double* original, double* packed, unsigned int mr, unsigned int nr )
 {
-	//cout << "unpack C" << endl;
+
 	for(unsigned int n = 0; n < nr; n++)
 	{
 		for(unsigned int m = 0; m < mr; m++)
 		{
 			original[n * lda + m] = packed[n * mr + m];
-			//cout <<n * lda + m <<" -- "<< n * mr + m << " : "<< packed[n * mr + m] <<endl;
-
 		}
 	}
-	//cout << endl;
 }
 
-static void do_kernel(double* AP, double* BP, double* CP, unsigned int kc, unsigned int mc,  unsigned int mr, unsigned int nr)
+
+
+static void compute_kernel_mn84(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc) {
+
+	__m256d ay0;
+	__m256d ay1;
+
+	__m256d bx;
+
+	__m256d cx0y0 = _mm256_loadu_pd(&cp[0]);
+	__m256d cx0y1 = _mm256_loadu_pd(&cp[4]);
+
+	__m256d cx1y0 = _mm256_loadu_pd(&cp[8]);
+	__m256d cx1y1 = _mm256_loadu_pd(&cp[12]);
+
+	__m256d cx2y0 = _mm256_loadu_pd(&cp[16]);
+	__m256d cx2y1 = _mm256_loadu_pd(&cp[20]);
+
+	__m256d cx3y0 = _mm256_loadu_pd(&cp[24]);
+	__m256d cx3y1 = _mm256_loadu_pd(&cp[28]);
+
+	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
+	{
+		ay0 = _mm256_loadu_pd(&ap[0]);
+		ay1 = _mm256_loadu_pd(&ap[4]);
+
+		// one element of B per column
+		bx = _mm256_set1_pd(bp[0]);
+		cx0y0 = _mm256_add_pd(cx0y0, _mm256_mul_pd(ay0, bx));
+		cx0y1 = _mm256_add_pd(cx0y1, _mm256_mul_pd(ay1, bx));
+
+		bx = _mm256_set1_pd(bp[kc]);
+		cx1y0 = _mm256_add_pd(cx1y0, _mm256_mul_pd(ay0, bx));
+		cx1y1 = _mm256_add_pd(cx1y1, _mm256_mul_pd(ay1, bx));
+
+
+		bx = _mm256_set1_pd(bp[2 * kc]);
+		cx2y0 = _mm256_add_pd(cx2y0, _mm256_mul_pd(ay0, bx));
+		cx2y1 = _mm256_add_pd(cx2y1, _mm256_mul_pd(ay1, bx));
+
+		bx = _mm256_set1_pd(bp[3 * kc]);
+		cx3y0 = _mm256_add_pd(cx3y0, _mm256_mul_pd(ay0, bx));
+		cx3y1 = _mm256_add_pd(cx3y1, _mm256_mul_pd(ay1, bx));
+
+	}
+
+	_mm256_storeu_pd(&cp[0], cx0y0);
+	_mm256_storeu_pd(&cp[4], cx0y1);
+	_mm256_storeu_pd(&cp[8], cx1y0);
+	_mm256_storeu_pd(&cp[12], cx1y1);
+	_mm256_storeu_pd(&cp[16], cx2y0);
+	_mm256_storeu_pd(&cp[20], cx2y1);
+	_mm256_storeu_pd(&cp[24], cx3y0);
+	_mm256_storeu_pd(&cp[28], cx3y1);
+
+}
+
+static void compute_kernel_mn4(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
 {
 
-	/*for (unsigned int m = 0; m < mr; m++)
+	__m256d ay0;
+
+	__m256d bx;
+
+	__m256d cx0 = _mm256_loadu_pd(&cp[0]);
+	__m256d cx1 = _mm256_loadu_pd(&cp[4]);
+	__m256d cx2 = _mm256_loadu_pd(&cp[8]);
+	__m256d cx3 = _mm256_loadu_pd(&cp[12]);
+
+	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
+	{
+		ay0 = _mm256_loadu_pd(&ap[0]);
+		// one element of B per column
+		bx = _mm256_set1_pd(bp[0]);
+		cx0 = _mm256_add_pd(cx0, _mm256_mul_pd(ay0, bx));
+
+		bx = _mm256_set1_pd(bp[kc]);
+		cx1 = _mm256_add_pd(cx1, _mm256_mul_pd(ay0, bx));
+
+		bx = _mm256_set1_pd(bp[2 * kc]);
+		cx2 = _mm256_add_pd(cx2, _mm256_mul_pd(ay0, bx));
+
+		bx = _mm256_set1_pd(bp[3 * kc]);
+		cx3 = _mm256_add_pd(cx3, _mm256_mul_pd(ay0, bx));
+
+	}
+
+	_mm256_storeu_pd(&cp[0], cx0);
+	_mm256_storeu_pd(&cp[4], cx1);
+	_mm256_storeu_pd(&cp[8], cx2);
+	_mm256_storeu_pd(&cp[12], cx3);
+
+
+}
+
+static void compute_fallback_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc,  unsigned int mr, unsigned int nr){
+
+	for (unsigned int k = 0; k < kc; k++)
 	{
 		for (unsigned int n = 0; n < nr; n++)
 		{
-			double cmn = CP[n * mr + m];
-
-			for (unsigned int k = 0; k < kc; k++)
-			{
-				cmn += AP[m * kc + k ] * BP[n * kc + k];
-			}
-			CP[n * mr + m] = cmn;
-		}
-	}*/
-
-	/*for (unsigned int k = 0; k < kc; k++)
-	{
-		for( unsigned int n = 0; n < nr; n++)
-		{
-			double fixedB = BP[n * kc + k];
+			double fixedB = bp[n * kc + k];
 			for (unsigned int m = 0; m < mr; m++)
 			{
-				CP[ k * mr + m] += AP[ k * mr + m] *fixedB;
+				// AP jumpes mc while CP jumpes just mr!!
+				cp[n * mr + m] += ap[k * mc + m] * fixedB;
 			}
 		}
 	}
-	 */
-	//cout << "mr " << mr <<  endl;
-	for (unsigned int k = 0; k < kc; k++)
+}
+
+static void do_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc,  unsigned int mr, unsigned int nr)
+{
+
+
+	switch(mr)
 	{
-		//cout << "k "<< k << endl;
-		for (unsigned int n = 0; n < nr; n++)
-		{
-			double fixedB = BP[n * kc + k];
-			//cout << endl;
-			//cout << "fixed " << fixedB <<  endl;
-			for (unsigned int m = 0; m < mr; m++)
+		case 4:
+
+			switch(nr)
 			{
-				//cout << n * lda + m << " < -- AP[" << k * mr + m << "] "<< AP[k * mr + m]<<  endl;
-				CP[n * mr + m] += AP[k * mc + m] * fixedB;
+				case 4:
+					compute_kernel_mn4(ap, bp, cp, kc, mc);
+					break;
+
+				default:
+					compute_fallback_kernel(ap , bp, CP, kc, mc, mr, nr);
 			}
-		}
+		break;
+
+		case 8:
+
+			switch(nr)
+			{
+				case 4:
+					compute_kernel_mn84(ap, bp, cp, kc, mc);
+					break;
+				default:
+					compute_fallback_kernel(ap , bp, CP, kc, mc, mr, nr);
+			}
+			break;
+
+		default:
+			compute_fallback_kernel(ap , bp, CP, kc, mc, mr, nr);
 	}
 
 
 }
 
-static void do_block(unsigned int lda, double* AP, double* BP, double* c, unsigned int kc, unsigned int mc, unsigned int nr)
+static void do_block(unsigned int lda, double* ap, double* bp, double* c, unsigned int kc, unsigned int mc, unsigned int nr)
 {
 
 	/**
@@ -181,7 +239,7 @@ static void do_block(unsigned int lda, double* AP, double* BP, double* c, unsign
 
 		pack_C(lda, c + mri, CP, mr, nr);
 
-		do_kernel(AP + mri, BP, CP, kc, mc, mr, nr);
+		do_kernel(ap + mri, bp, CP, kc, mc, mr, nr);
 
 		unpack_C(lda, c + mri, CP, mr, nr);
 	}
@@ -239,6 +297,7 @@ void square_dgemm (int lda, double* A, double* B, double* C)
 	BP = (double*) malloc (lda * KC * sizeof(double));
 	// allocates AP for its possible maximum size
 	AP = (double*) malloc (MC * KC * sizeof(double));
+	// allocates CP for its possible maximum size
 	CP = (double*) malloc (MC * NR * sizeof(double));
 
 	gemm_var1(lda, A, B, C);
