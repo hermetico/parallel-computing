@@ -9,7 +9,7 @@ extern void square_dgemm (int, double*, double*, double*);
 
 int main (int argc, char **argv)
 {
-	int n=5;
+	int n=10;
 
 
 
@@ -29,7 +29,7 @@ int main (int argc, char **argv)
 
 	for (int i=0; i<n; i++) {
 		for (int j = 0; j < n; j++) {
-			cout <<  A[i +j*n] <<", ";
+			cout <<  A[j*n+i] <<", ";
 		}
 		cout << endl;
 	}
