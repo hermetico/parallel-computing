@@ -382,7 +382,7 @@ void square_dgemm (int lda, double* A, double* B, double* C)
 	// allocates AP for its possible maximum size
 	AP = (double*) _mm_malloc (MC * KC * sizeof(double), 32);
 	// allocates CP for its possible maximum size
-	CP = (double*) _mm_malloc (MC * NR * sizeof(double), 32);
+	CP = (double*) _mm_malloc (MR * NR * sizeof(double), 32);
 
 	gemm_var1(lda, A, B, C);
 
