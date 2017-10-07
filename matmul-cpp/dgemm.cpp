@@ -4,31 +4,28 @@ const char* dgemm_desc = "dgemm custom implementation";
 #include <immintrin.h>
 using namespace std;
 
-#if !defined(KC)
-#define KC 256
-#endif
-
-#if !defined(MC)
-#define MC 64
-#endif
-
-#if !defined(NR)
-#define NR 4
-#endif
-
-#if !defined(MR)
-#define MR 8
-#endif
-
 
 #define min(a,b) (((a)<(b))?(a):(b))
+
+
+
+unsigned int KC = 256;
+unsigned int MC = 64;
+unsigned int NR = 4;
+unsigned int MR = 8;
+
 
 // packed B and A
 double* BP;
 double* AP;
 double* CP;
+double* APP;
 
 
+static void pack_AP(unsigned int mc, double* original, double* packed, unsigned int kc, unsigned int mr)
+{
+
+}
 static void pack_A(unsigned int lda, double* original, double* packed, unsigned int kc, unsigned int mc )
 {
 
@@ -322,8 +319,9 @@ static void do_block(unsigned int lda, double* ap, double* bp, double* c, unsign
 		unsigned int mr = min(MR, mc - mri );
 
 		pack_C(lda, c + mri, CP, mr, nr);
-
+		// TODO test packing AP into APP for aligning data
 		do_kernel(ap + mri, bp, CP, kc, mc, mr, nr);
+
 
 		unpack_C(lda, c + mri, CP, mr, nr);
 	}
@@ -383,6 +381,8 @@ void square_dgemm (int lda, double* A, double* B, double* C)
 	AP = (double*) _mm_malloc (MC * KC * sizeof(double), 32);
 	// allocates CP for its possible maximum size
 	CP = (double*) _mm_malloc (MR * NR * sizeof(double), 32);
+	// allocates APP the second packing of A, just in case data is not aligned
+	APP = (double*) _mm_malloc (MR * KC * sizeof(double), 32);
 
 	gemm_var1(lda, A, B, C);
 
