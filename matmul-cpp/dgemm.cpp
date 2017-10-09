@@ -13,7 +13,7 @@ unsigned int KC = 256;
 unsigned int MC = 64;
 unsigned int NR = 4;
 unsigned int MR = 8;
-
+unsigned int PADD = 4;
 
 // packed B and A
 double* BP;
@@ -96,8 +96,8 @@ static void compute_kernel_mn84(double* ap, double* bp, double* cp, unsigned int
 
 	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
 	{
-		ay0 = _mm256_loadu_pd(&ap[0]);
-		ay1 = _mm256_loadu_pd(&ap[4]);
+		ay0 = _mm256_load_pd(&ap[0]);
+		ay1 = _mm256_load_pd(&ap[4]);
 
 		// one element of B per column
 		bx = _mm256_set1_pd(bp[0]);
@@ -144,7 +144,7 @@ static void compute_kernel_mn4(double* ap, double* bp, double* cp, unsigned int 
 
 	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
 	{
-		ay0 = _mm256_loadu_pd(&ap[0]);
+		ay0 = _mm256_load_pd(&ap[0]);
 		// one element of B per column
 		bx = _mm256_set1_pd(bp[0]);
 		cx0 = _mm256_add_pd(cx0, _mm256_mul_pd(ay0, bx));
@@ -180,7 +180,7 @@ static void compute_kernel_mn43(double* ap, double* bp, double* cp, unsigned int
 
 	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
 	{
-		ay0 = _mm256_loadu_pd(&ap[0]);
+		ay0 = _mm256_load_pd(&ap[0]);
 		// one element of B per column
 		bx = _mm256_set1_pd(bp[0]);
 		cx0 = _mm256_add_pd(cx0, _mm256_mul_pd(ay0, bx));
@@ -209,7 +209,7 @@ static void compute_kernel_mn42(double* ap, double* bp, double* cp, unsigned int
 
 	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
 	{
-		ay0 = _mm256_loadu_pd(&ap[0]);
+		ay0 = _mm256_load_pd(&ap[0]);
 		// one element of B per column
 		bx = _mm256_set1_pd(bp[0]);
 		cx0 = _mm256_add_pd(cx0, _mm256_mul_pd(ay0, bx));
@@ -234,7 +234,7 @@ static void compute_kernel_mn41(double* ap, double* bp, double* cp, unsigned int
 
 	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
 	{
-		ay0 = _mm256_loadu_pd(&ap[0]);
+		ay0 = _mm256_load_pd(&ap[0]);
 		// one element of B per column
 		bx = _mm256_set1_pd(bp[0]);
 		cx0 = _mm256_add_pd(cx0, _mm256_mul_pd(ay0, bx));
@@ -348,8 +348,10 @@ static void gepp_var1(unsigned int lda, double* a, double* bp, double* c, unsign
 		// checking mc edges
 		mc = min(MC, lda - mci );
 		mc2 = mc;
-		mc += mc % MR;
-		pack_A(lda, a + mci, AP, kc, mc, mc2 % MR);
+		mc += PADD - (mc % PADD);
+
+		if(MC)
+		pack_A(lda, a + mci, AP, kc, mc, PADD - (mc2 % PADD));
 
 		gebp_var1(lda, AP, bp, c + mci, kc, mc);
 	}
@@ -376,7 +378,7 @@ void square_dgemm (int lda, double* A, double* B, double* C)
 	// allocates BP for its possible maximum size
 	BP = (double*) _mm_malloc (lda * KC * sizeof(double), 32);
 	// allocates AP for its possible maximum size
-	AP = (double*) _mm_malloc ((MC + MR) * KC * sizeof(double), 32); // enough to add zero padding
+	AP = (double*) _mm_malloc ((MC + (PADD - MC % PADD)) * KC * sizeof(double), 32); // enough to add zero padding
 	// allocates CP for its possible maximum size
 	CP = (double*) _mm_malloc (MR * NR * sizeof(double), 32);
 
