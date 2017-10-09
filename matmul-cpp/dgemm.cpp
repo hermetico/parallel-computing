@@ -502,19 +502,17 @@ static void do_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsig
 				case 2:
 					compute_kernel_mn22(ap, bp, cp, kc, mc);
 					break;
-
 				case 3:
 					compute_kernel_mn23(ap, bp, cp, kc, mc);
 					break;
 				case 4:
 					compute_kernel_mn24(ap, bp, cp, kc, mc);
 					break;
-
 				default:
 					compute_fallback_kernel(ap , bp, cp, kc, mc, mr, nr);
 			}
+			break;
 		case 4:
-
 			switch(nr)
 			{
 				case 1:
@@ -533,9 +531,7 @@ static void do_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsig
 					compute_fallback_kernel(ap , bp, cp, kc, mc, mr, nr);
 			}
 		break;
-
 		case 8:
-
 			switch(nr)
 			{
 				case 1:
@@ -554,7 +550,6 @@ static void do_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsig
 					compute_fallback_kernel(ap , bp, cp, kc, mc, mr, nr);
 			}
 			break;
-
 		default:
 			compute_fallback_kernel(ap , bp, cp, kc, mc, mr, nr);
 	}
