@@ -99,21 +99,21 @@ static void compute_kernel_mn84(double* ap, double* bp, double* cp, unsigned int
 
 		// one element of B per column
 		bx = _mm256_set1_pd(bp[0]);
-		cx0y0 = _mm256_add_pd(cx0y0, _mm256_mul_pd(ay0, bx));
-		cx0y1 = _mm256_add_pd(cx0y1, _mm256_mul_pd(ay1, bx));
+		cx0y0 = _mm256_fmadd_pd(ay0, bx, cx0y0);
+		cx0y1 = _mm256_fmadd_pd(ay1, bx, cx0y1);
 
 		bx = _mm256_set1_pd(bp[kc]);
-		cx1y0 = _mm256_add_pd(cx1y0, _mm256_mul_pd(ay0, bx));
-		cx1y1 = _mm256_add_pd(cx1y1, _mm256_mul_pd(ay1, bx));
+		cx1y0 = _mm256_fmadd_pd(ay0, bx, cx1y0);
+		cx1y1 = _mm256_fmadd_pd(ay1, bx, cx1y1);
 
 
 		bx = _mm256_set1_pd(bp[2 * kc]);
-		cx2y0 = _mm256_add_pd(cx2y0, _mm256_mul_pd(ay0, bx));
-		cx2y1 = _mm256_add_pd(cx2y1, _mm256_mul_pd(ay1, bx));
+		cx2y0 = _mm256_fmadd_pd(ay0, bx, cx2y0);
+		cx2y1 = _mm256_fmadd_pd(ay1, bx, cx2y1);
 
 		bx = _mm256_set1_pd(bp[3 * kc]);
-		cx3y0 = _mm256_add_pd(cx3y0, _mm256_mul_pd(ay0, bx));
-		cx3y1 = _mm256_add_pd(cx3y1, _mm256_mul_pd(ay1, bx));
+		cx3y0 = _mm256_fmadd_pd(ay0, bx, cx3y0);
+		cx3y1 = _mm256_fmadd_pd(ay1, bx, cx3y1);
 
 	}
 
