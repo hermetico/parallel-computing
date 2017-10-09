@@ -19,7 +19,6 @@ unsigned int PADD = 4;
 double* BP;
 double* AP;
 double* CP;
-double* APP;
 
 
 static void pack_A(unsigned int lda, double* original, double* packed, unsigned int kc, unsigned int mc, unsigned int zero_padding)
@@ -73,9 +72,8 @@ static void unpack_C(unsigned int lda, double* original, double* packed, unsigne
 	}
 }
 
-
-
-static void compute_kernel_mn84(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc) {
+static void compute_kernel_mn84(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
+{
 
 	__m256d ay0;
 	__m256d ay1;
@@ -130,7 +128,120 @@ static void compute_kernel_mn84(double* ap, double* bp, double* cp, unsigned int
 
 }
 
-static void compute_kernel_mn4(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
+static void compute_kernel_mn83(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
+{
+
+	__m256d ay0;
+	__m256d ay1;
+
+	__m256d bx;
+
+	__m256d cx0y0 = _mm256_load_pd(&cp[0]);
+	__m256d cx0y1 = _mm256_load_pd(&cp[4]);
+
+	__m256d cx1y0 = _mm256_load_pd(&cp[8]);
+	__m256d cx1y1 = _mm256_load_pd(&cp[12]);
+
+	__m256d cx2y0 = _mm256_load_pd(&cp[16]);
+	__m256d cx2y1 = _mm256_load_pd(&cp[20]);
+
+	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
+	{
+		ay0 = _mm256_load_pd(&ap[0]);
+		ay1 = _mm256_load_pd(&ap[4]);
+
+		// one element of B per column
+		bx = _mm256_set1_pd(bp[0]);
+		cx0y0 = _mm256_add_pd(cx0y0, _mm256_mul_pd(ay0, bx));
+		cx0y1 = _mm256_add_pd(cx0y1, _mm256_mul_pd(ay1, bx));
+
+		bx = _mm256_set1_pd(bp[kc]);
+		cx1y0 = _mm256_add_pd(cx1y0, _mm256_mul_pd(ay0, bx));
+		cx1y1 = _mm256_add_pd(cx1y1, _mm256_mul_pd(ay1, bx));
+
+
+		bx = _mm256_set1_pd(bp[2 * kc]);
+		cx2y0 = _mm256_add_pd(cx2y0, _mm256_mul_pd(ay0, bx));
+		cx2y1 = _mm256_add_pd(cx2y1, _mm256_mul_pd(ay1, bx));
+
+	}
+
+	_mm256_store_pd(&cp[0], cx0y0);
+	_mm256_store_pd(&cp[4], cx0y1);
+	_mm256_store_pd(&cp[8], cx1y0);
+	_mm256_store_pd(&cp[12], cx1y1);
+	_mm256_store_pd(&cp[16], cx2y0);
+	_mm256_store_pd(&cp[20], cx2y1);
+
+}
+
+static void compute_kernel_mn82(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
+{
+
+	__m256d ay0;
+	__m256d ay1;
+
+	__m256d bx;
+
+	__m256d cx0y0 = _mm256_load_pd(&cp[0]);
+	__m256d cx0y1 = _mm256_load_pd(&cp[4]);
+
+	__m256d cx1y0 = _mm256_load_pd(&cp[8]);
+	__m256d cx1y1 = _mm256_load_pd(&cp[12]);
+
+	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
+	{
+		ay0 = _mm256_load_pd(&ap[0]);
+		ay1 = _mm256_load_pd(&ap[4]);
+
+		// one element of B per column
+		bx = _mm256_set1_pd(bp[0]);
+		cx0y0 = _mm256_add_pd(cx0y0, _mm256_mul_pd(ay0, bx));
+		cx0y1 = _mm256_add_pd(cx0y1, _mm256_mul_pd(ay1, bx));
+
+		bx = _mm256_set1_pd(bp[kc]);
+		cx1y0 = _mm256_add_pd(cx1y0, _mm256_mul_pd(ay0, bx));
+		cx1y1 = _mm256_add_pd(cx1y1, _mm256_mul_pd(ay1, bx));
+
+	}
+
+	_mm256_store_pd(&cp[0], cx0y0);
+	_mm256_store_pd(&cp[4], cx0y1);
+	_mm256_store_pd(&cp[8], cx1y0);
+	_mm256_store_pd(&cp[12], cx1y1);
+
+}
+
+static void compute_kernel_mn81(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
+{
+
+	__m256d ay0;
+	__m256d ay1;
+
+	__m256d bx;
+
+	__m256d cx0y0 = _mm256_load_pd(&cp[0]);
+	__m256d cx0y1 = _mm256_load_pd(&cp[4]);
+
+	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
+	{
+		ay0 = _mm256_load_pd(&ap[0]);
+		ay1 = _mm256_load_pd(&ap[4]);
+
+		// one element of B per column
+		bx = _mm256_set1_pd(bp[0]);
+		cx0y0 = _mm256_add_pd(cx0y0, _mm256_mul_pd(ay0, bx));
+		cx0y1 = _mm256_add_pd(cx0y1, _mm256_mul_pd(ay1, bx));
+
+
+	}
+
+	_mm256_store_pd(&cp[0], cx0y0);
+	_mm256_store_pd(&cp[4], cx0y1);
+
+}
+
+static void compute_kernel_mn44(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
 {
 
 	__m256d ay0;
@@ -166,7 +277,6 @@ static void compute_kernel_mn4(double* ap, double* bp, double* cp, unsigned int 
 
 }
 
-
 static void compute_kernel_mn43(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
 {
 
@@ -197,6 +307,7 @@ static void compute_kernel_mn43(double* ap, double* bp, double* cp, unsigned int
 	_mm256_store_pd(&cp[8], cx2);
 
 }
+
 static void compute_kernel_mn42(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
 {
 
@@ -244,6 +355,122 @@ static void compute_kernel_mn41(double* ap, double* bp, double* cp, unsigned int
 	_mm256_store_pd(&cp[0], cx0);
 
 }
+
+static void compute_kernel_mn24(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
+{
+
+	__m128d ay0;
+
+	__m128d bx;
+
+	__m128d cx0 = _mm_load_pd(&cp[0]);
+	__m128d cx1 = _mm_load_pd(&cp[4]);
+	__m128d cx2 = _mm_load_pd(&cp[8]);
+	__m128d cx3 = _mm_load_pd(&cp[12]);
+
+	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
+	{
+		ay0 = _mm_load_pd(&ap[0]);
+		// one element of B per column
+		bx = _mm_set1_pd(bp[0]);
+		cx0 = _mm_add_pd(cx0, _mm_mul_pd(ay0, bx));
+
+		bx = _mm_set1_pd(bp[kc]);
+		cx1 = _mm_add_pd(cx1, _mm_mul_pd(ay0, bx));
+
+		bx = _mm_set1_pd(bp[2 * kc]);
+		cx2 = _mm_add_pd(cx2, _mm_mul_pd(ay0, bx));
+
+		bx = _mm_set1_pd(bp[3 * kc]);
+		cx3 = _mm_add_pd(cx3, _mm_mul_pd(ay0, bx));
+	}
+
+	_mm_store_pd(&cp[0], cx0);
+	_mm_store_pd(&cp[4], cx1);
+	_mm_store_pd(&cp[8], cx2);
+	_mm_store_pd(&cp[12], cx3);
+
+}
+
+static void compute_kernel_mn23(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
+{
+
+	__m128d ay0;
+
+	__m128d bx;
+
+	__m128d cx0 = _mm_load_pd(&cp[0]);
+	__m128d cx1 = _mm_load_pd(&cp[4]);
+	__m128d cx2 = _mm_load_pd(&cp[8]);
+
+	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
+	{
+		ay0 = _mm_load_pd(&ap[0]);
+		// one element of B per column
+		bx = _mm_set1_pd(bp[0]);
+		cx0 = _mm_add_pd(cx0, _mm_mul_pd(ay0, bx));
+
+		bx = _mm_set1_pd(bp[kc]);
+		cx1 = _mm_add_pd(cx1, _mm_mul_pd(ay0, bx));
+
+		bx = _mm_set1_pd(bp[2 * kc]);
+		cx2 = _mm_add_pd(cx2, _mm_mul_pd(ay0, bx));
+	}
+
+	_mm_store_pd(&cp[0], cx0);
+	_mm_store_pd(&cp[4], cx1);
+	_mm_store_pd(&cp[8], cx2);
+
+}
+
+static void compute_kernel_mn22(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
+{
+
+	__m128d ay0;
+
+	__m128d bx;
+
+	__m128d cx0 = _mm_load_pd(&cp[0]);
+	__m128d cx1 = _mm_load_pd(&cp[4]);
+
+	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
+	{
+		ay0 = _mm_load_pd(&ap[0]);
+		// one element of B per column
+		bx = _mm_set1_pd(bp[0]);
+		cx0 = _mm_add_pd(cx0, _mm_mul_pd(ay0, bx));
+
+		bx = _mm_set1_pd(bp[kc]);
+		cx1 = _mm_add_pd(cx1, _mm_mul_pd(ay0, bx));
+	}
+
+	_mm_store_pd(&cp[0], cx0);
+	_mm_store_pd(&cp[4], cx1);
+
+}
+
+static void compute_kernel_mn21(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
+{
+
+	__m128d ay0;
+
+	__m128d bx;
+
+	__m128d cx0 = _mm_load_pd(&cp[0]);
+
+	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
+	{
+		ay0 = _mm_load_pd(&ap[0]);
+		// one element of B per column
+		bx = _mm_set1_pd(bp[0]);
+		cx0 = _mm_add_pd(cx0, _mm_mul_pd(ay0, bx));
+
+	}
+
+	_mm_store_pd(&cp[0], cx0);
+
+}
+
 static void compute_fallback_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc,  unsigned int mr, unsigned int nr){
 
 	for (unsigned int k = 0; k < kc; k++)
@@ -266,6 +493,26 @@ static void do_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsig
 
 	switch(mr)
 	{
+		case 2:
+			switch(nr)
+			{
+				case 1:
+					compute_kernel_mn21(ap, bp, cp, kc, mc);
+					break;
+				case 2:
+					compute_kernel_mn22(ap, bp, cp, kc, mc);
+					break;
+
+				case 3:
+					compute_kernel_mn23(ap, bp, cp, kc, mc);
+					break;
+				case 4:
+					compute_kernel_mn24(ap, bp, cp, kc, mc);
+					break;
+
+				default:
+					compute_fallback_kernel(ap , bp, cp, kc, mc, mr, nr);
+			}
 		case 4:
 
 			switch(nr)
@@ -280,10 +527,10 @@ static void do_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsig
 					compute_kernel_mn43(ap, bp, cp, kc, mc);
 					break;
 				case 4:
-					compute_kernel_mn4(ap, bp, cp, kc, mc);
+					compute_kernel_mn44(ap, bp, cp, kc, mc);
 					break;
 				default:
-					compute_fallback_kernel(ap , bp, CP, kc, mc, mr, nr);
+					compute_fallback_kernel(ap , bp, cp, kc, mc, mr, nr);
 			}
 		break;
 
@@ -291,16 +538,25 @@ static void do_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsig
 
 			switch(nr)
 			{
+				case 1:
+					compute_kernel_mn81(ap, bp, cp, kc, mc);
+					break;
+				case 2:
+					compute_kernel_mn82(ap, bp, cp, kc, mc);
+					break;
+				case 3:
+					compute_kernel_mn83(ap, bp, cp, kc, mc);
+					break;
 				case 4:
 					compute_kernel_mn84(ap, bp, cp, kc, mc);
 					break;
 				default:
-					compute_fallback_kernel(ap , bp, CP, kc, mc, mr, nr);
+					compute_fallback_kernel(ap , bp, cp, kc, mc, mr, nr);
 			}
 			break;
 
 		default:
-			compute_fallback_kernel(ap , bp, CP, kc, mc, mr, nr);
+			compute_fallback_kernel(ap , bp, cp, kc, mc, mr, nr);
 	}
 
 
