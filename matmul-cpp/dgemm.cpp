@@ -22,19 +22,18 @@ double* CP;
 double* APP;
 
 
-static void pack_AP(unsigned int mc, double* original, double* packed, unsigned int kc, unsigned int mr)
+static void pack_A(unsigned int lda, double* original, double* packed, unsigned int kc, unsigned int mc, unsigned int zero_padding)
 {
-
-}
-static void pack_A(unsigned int lda, double* original, double* packed, unsigned int kc, unsigned int mc )
-{
+	unsigned int m;
 
 	for( unsigned int k = 0; k < kc; k++)
 	{
-		for(unsigned int m = 0; m < mc; m++)
+		for(m = 0; m < mc - zero_padding; m++)
 		{
 			packed[k * mc + m] = original[k * lda + m];
 		}
+		for(m; m < mc; m++)
+			packed[k * mc + m] = 0;
 
 	}
 }
@@ -319,10 +318,7 @@ static void do_block(unsigned int lda, double* ap, double* bp, double* c, unsign
 		unsigned int mr = min(MR, mc - mri );
 
 		pack_C(lda, c + mri, CP, mr, nr);
-		// TODO test packing AP into APP for aligning data
 		do_kernel(ap + mri, bp, CP, kc, mc, mr, nr);
-
-
 		unpack_C(lda, c + mri, CP, mr, nr);
 	}
 }
@@ -343,15 +339,17 @@ static void gebp_var1(unsigned int lda, double* ap, double* bp, double* c, unsig
 
 static void gepp_var1(unsigned int lda, double* a, double* bp, double* c, unsigned int kc)
 {
+	unsigned int mc, mc2;
 	/**
 	* Slices the matrices A and C by its M dimension
 	*/
 	for(unsigned int mci = 0; mci < lda; mci += MC)
 	{
 		// checking mc edges
-		unsigned int mc = min(MC, lda - mci );
-
-		pack_A(lda, a + mci, AP, kc, mc);
+		mc = min(MC, lda - mci );
+		mc2 = mc;
+		mc += mc % MR;
+		pack_A(lda, a + mci, AP, kc, mc, mc2 % MR);
 
 		gebp_var1(lda, AP, bp, c + mci, kc, mc);
 	}
@@ -378,11 +376,9 @@ void square_dgemm (int lda, double* A, double* B, double* C)
 	// allocates BP for its possible maximum size
 	BP = (double*) _mm_malloc (lda * KC * sizeof(double), 32);
 	// allocates AP for its possible maximum size
-	AP = (double*) _mm_malloc (MC * KC * sizeof(double), 32);
+	AP = (double*) _mm_malloc ((MC + MR) * KC * sizeof(double), 32); // enough to add zero padding
 	// allocates CP for its possible maximum size
 	CP = (double*) _mm_malloc (MR * NR * sizeof(double), 32);
-	// allocates APP the second packing of A, just in case data is not aligned
-	APP = (double*) _mm_malloc (MR * KC * sizeof(double), 32);
 
 	gemm_var1(lda, A, B, C);
 
