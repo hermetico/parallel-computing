@@ -2,6 +2,7 @@ const char* dgemm_desc = "dgemm custom implementation";
 
 #include <stdlib.h>	 /* malloc, free, rand */
 #include <immintrin.h>
+#include <stdio.h>
 
 
 
@@ -14,6 +15,7 @@ unsigned int MC = 64;
 unsigned int NR = 4;
 unsigned int MR = 8;
 unsigned int PADD = 4;
+unsigned int current_padding = 0;
 
 // packed B and A
 double* BP;
@@ -23,6 +25,9 @@ double* CP;
 
 static void pack_A(unsigned int lda, double* original, double* packed, unsigned int kc, unsigned int mc, unsigned int zero_padding)
 {
+    // global variable to keep track of the current padding :S ugly
+    current_padding = zero_padding;
+    printf("current padding %i\n", current_padding);
     unsigned int m;
 
     for( unsigned int k = 0; k < kc; k++)
@@ -48,24 +53,27 @@ static void pack_B(unsigned int lda, double* original, double* packed, unsigned 
     }
 }
 
-static void pack_C(unsigned int lda, double* original, double* packed, unsigned int mr, unsigned int nr )
+static void pack_C(unsigned int lda, double* original, double* packed, unsigned int mr, unsigned int nr, unsigned int zero_padding)
 {
 
+    unsigned int m;
     for(unsigned int n = 0; n < nr; n++)
     {
-        for(unsigned int m = 0; m < mr; m++)
+        for(m = 0; m < mr - zero_padding; m++)
         {
             packed[n * mr + m] = original[n * lda + m];
         }
+        for(; m < mr; m++)
+            packed[n * mr + m] = 0;
     }
 }
 
-static void unpack_C(unsigned int lda, double* original, double* packed, unsigned int mr, unsigned int nr )
+static void unpack_C(unsigned int lda, double* original, double* packed, unsigned int mr, unsigned int nr, unsigned int zero_padding)
 {
 
     for(unsigned int n = 0; n < nr; n++)
     {
-        for(unsigned int m = 0; m < mr; m++)
+        for(unsigned int m = 0; m < mr - zero_padding; m++)
         {
             original[n * lda + m] = packed[n * mr + m];
         }
@@ -437,9 +445,21 @@ static void do_block(unsigned int lda, double* ap, double* bp, double* c, unsign
         // checking mr edges
         unsigned int mr = min(MR, mc - mri );
 
-        pack_C(lda, c + mri, CP, mr, nr);
+        // explain on the report that this breaks on edison but not on desktop
+        // checks edges when there is padding on MC to not get out of bounds while reading from C
+        if(mri + MR< mc)
+            pack_C(lda, c + mri, CP, mr, nr, 0);
+        else
+            pack_C(lda, c + mri, CP, mr, nr, current_padding);
+
         do_kernel(ap + mri, bp, CP, kc, mc, mr, nr);
-        unpack_C(lda, c + mri, CP, mr, nr);
+
+        // checks edges when there is padding on MC to not get out of bounds while writing to C
+        if(mri + MR < mc)
+            unpack_C(lda, c + mri, CP, mr, nr, 0);
+        else
+            unpack_C(lda, c + mri, CP, mr, nr, current_padding);
+
     }
 }
 
@@ -470,8 +490,7 @@ static void gepp_var1(unsigned int lda, double* a, double* bp, double* c, unsign
         mc2 = mc;
         mc += PADD - (mc % PADD);
 
-        if(MC)
-            pack_A(lda, a + mci, AP, kc, mc, PADD - (mc2 % PADD));
+        pack_A(lda, a + mci, AP, kc, mc, PADD - (mc2 % PADD));
 
         gebp_var1(lda, AP, bp, c + mci, kc, mc);
     }
@@ -496,16 +515,17 @@ static void gemm_var1(unsigned int lda, double* a, double* b, double* c)
 void square_dgemm (int lda, double* A, double* B, double* C)
 {
     // allocates BP for its possible maximum size
-    BP = (double*) _mm_malloc (lda * KC * sizeof(double), 32);
+    BP = _mm_malloc (lda * KC * sizeof(double), 32);
     // allocates AP for its possible maximum size
-    AP = (double*) _mm_malloc ((MC + (PADD - MC % PADD)) * KC * sizeof(double), 32); // enough to add zero padding
+    AP = _mm_malloc ((MC + (PADD - MC % PADD)) * KC * sizeof(double), 32); // enough to add zero padding
     // allocates CP for its possible maximum size
-    CP = (double*) _mm_malloc (MR * NR * sizeof(double), 32);
+    CP = _mm_malloc (MR * NR * sizeof(double), 32);
 
     gemm_var1(lda, A, B, C);
 
     free(BP);
     free(AP);
+    free(CP);
 
 }
 
