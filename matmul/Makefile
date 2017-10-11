@@ -2,7 +2,7 @@
 # This makefile is intended for the GNU C compiler. To change compilers, you need to type something like: "module swap PrgEnv-pgi PrgEnv-gnu" See the NERSC documentation for available compilers.
 
 CC = cc 
-OPT = -O1
+OPT = -O3
 CFLAGS = -g -Wall -std=gnu99 $(OPT) -mavx
 LDFLAGS = -Wall
 # librt is needed for clock_gettime

@@ -2,7 +2,6 @@ const char* dgemm_desc = "dgemm custom implementation";
 
 #include <stdlib.h>	 /* malloc, free, rand */
 #include <immintrin.h>
-#include <stdio.h>
 
 
 
@@ -14,6 +13,7 @@ unsigned int KC = 256;
 unsigned int MC = 64;
 unsigned int NR = 4;
 unsigned int MR = 8;
+
 unsigned int PADD = 4;
 unsigned int current_padding = 0;
 
