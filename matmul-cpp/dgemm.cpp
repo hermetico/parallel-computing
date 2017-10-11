@@ -356,123 +356,8 @@ static void compute_kernel_mn41(double* ap, double* bp, double* cp, unsigned int
 
 }
 
-static void compute_kernel_mn24(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
+static void compute_fallback_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc,  unsigned int mr, unsigned int nr)
 {
-
-	__m128d ay0;
-
-	__m128d bx;
-
-	__m128d cx0 = _mm_load_pd(&cp[0]);
-	__m128d cx1 = _mm_load_pd(&cp[4]);
-	__m128d cx2 = _mm_load_pd(&cp[8]);
-	__m128d cx3 = _mm_load_pd(&cp[12]);
-
-	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
-	{
-		ay0 = _mm_load_pd(&ap[0]);
-		// one element of B per column
-		bx = _mm_set1_pd(bp[0]);
-		cx0 = _mm_add_pd(cx0, _mm_mul_pd(ay0, bx));
-
-		bx = _mm_set1_pd(bp[kc]);
-		cx1 = _mm_add_pd(cx1, _mm_mul_pd(ay0, bx));
-
-		bx = _mm_set1_pd(bp[2 * kc]);
-		cx2 = _mm_add_pd(cx2, _mm_mul_pd(ay0, bx));
-
-		bx = _mm_set1_pd(bp[3 * kc]);
-		cx3 = _mm_add_pd(cx3, _mm_mul_pd(ay0, bx));
-	}
-
-	_mm_store_pd(&cp[0], cx0);
-	_mm_store_pd(&cp[4], cx1);
-	_mm_store_pd(&cp[8], cx2);
-	_mm_store_pd(&cp[12], cx3);
-
-}
-
-static void compute_kernel_mn23(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
-{
-
-	__m128d ay0;
-
-	__m128d bx;
-
-	__m128d cx0 = _mm_load_pd(&cp[0]);
-	__m128d cx1 = _mm_load_pd(&cp[4]);
-	__m128d cx2 = _mm_load_pd(&cp[8]);
-
-	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
-	{
-		ay0 = _mm_load_pd(&ap[0]);
-		// one element of B per column
-		bx = _mm_set1_pd(bp[0]);
-		cx0 = _mm_add_pd(cx0, _mm_mul_pd(ay0, bx));
-
-		bx = _mm_set1_pd(bp[kc]);
-		cx1 = _mm_add_pd(cx1, _mm_mul_pd(ay0, bx));
-
-		bx = _mm_set1_pd(bp[2 * kc]);
-		cx2 = _mm_add_pd(cx2, _mm_mul_pd(ay0, bx));
-	}
-
-	_mm_store_pd(&cp[0], cx0);
-	_mm_store_pd(&cp[4], cx1);
-	_mm_store_pd(&cp[8], cx2);
-
-}
-
-static void compute_kernel_mn22(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
-{
-
-	__m128d ay0;
-
-	__m128d bx;
-
-	__m128d cx0 = _mm_load_pd(&cp[0]);
-	__m128d cx1 = _mm_load_pd(&cp[4]);
-
-	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
-	{
-		ay0 = _mm_load_pd(&ap[0]);
-		// one element of B per column
-		bx = _mm_set1_pd(bp[0]);
-		cx0 = _mm_add_pd(cx0, _mm_mul_pd(ay0, bx));
-
-		bx = _mm_set1_pd(bp[kc]);
-		cx1 = _mm_add_pd(cx1, _mm_mul_pd(ay0, bx));
-	}
-
-	_mm_store_pd(&cp[0], cx0);
-	_mm_store_pd(&cp[4], cx1);
-
-}
-
-static void compute_kernel_mn21(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc)
-{
-
-	__m128d ay0;
-
-	__m128d bx;
-
-	__m128d cx0 = _mm_load_pd(&cp[0]);
-
-	for (unsigned int k = 0; k < kc; k++, bp++, ap += mc)
-	{
-		ay0 = _mm_load_pd(&ap[0]);
-		// one element of B per column
-		bx = _mm_set1_pd(bp[0]);
-		cx0 = _mm_add_pd(cx0, _mm_mul_pd(ay0, bx));
-
-	}
-
-	_mm_store_pd(&cp[0], cx0);
-
-}
-
-static void compute_fallback_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsigned int mc,  unsigned int mr, unsigned int nr){
-
 	for (unsigned int k = 0; k < kc; k++)
 	{
 		for (unsigned int n = 0; n < nr; n++)
@@ -493,25 +378,6 @@ static void do_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsig
 
 	switch(mr)
 	{
-		case 2:
-			switch(nr)
-			{
-				case 1:
-					compute_kernel_mn21(ap, bp, cp, kc, mc);
-					break;
-				case 2:
-					compute_kernel_mn22(ap, bp, cp, kc, mc);
-					break;
-				case 3:
-					compute_kernel_mn23(ap, bp, cp, kc, mc);
-					break;
-				case 4:
-					compute_kernel_mn24(ap, bp, cp, kc, mc);
-					break;
-				default:
-					compute_fallback_kernel(ap , bp, cp, kc, mc, mr, nr);
-			}
-			break;
 		case 4:
 			switch(nr)
 			{
@@ -528,6 +394,7 @@ static void do_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsig
 					compute_kernel_mn44(ap, bp, cp, kc, mc);
 					break;
 				default:
+                    // we shouldn't get here
 					compute_fallback_kernel(ap , bp, cp, kc, mc, mr, nr);
 			}
 		break;
@@ -547,10 +414,12 @@ static void do_kernel(double* ap, double* bp, double* cp, unsigned int kc, unsig
 					compute_kernel_mn84(ap, bp, cp, kc, mc);
 					break;
 				default:
+                    // we shouldn't get here
 					compute_fallback_kernel(ap , bp, cp, kc, mc, mr, nr);
 			}
 			break;
 		default:
+            // we shouldn't get here
 			compute_fallback_kernel(ap , bp, cp, kc, mc, mr, nr);
 	}
 
