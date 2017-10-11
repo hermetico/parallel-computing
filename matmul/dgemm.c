@@ -27,7 +27,6 @@ static void pack_A(unsigned int lda, double* original, double* packed, unsigned 
 {
     // global variable to keep track of the current padding :S ugly
     current_padding = zero_padding;
-    printf("current padding %i\n", current_padding);
     unsigned int m;
 
     for( unsigned int k = 0; k < kc; k++)
@@ -523,9 +522,9 @@ void square_dgemm (int lda, double* A, double* B, double* C)
 
     gemm_var1(lda, A, B, C);
 
-    free(BP);
-    free(AP);
-    free(CP);
+    _mm_free(BP);
+    _mm_free(AP);
+    _mm_free(CP);
 
 }
 
