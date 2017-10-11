@@ -35,8 +35,9 @@ static void pack_A(unsigned int lda, double* original, double* packed, unsigned 
         {
             packed[k * mc + m] = original[k * lda + m];
         }
-        for(; m < mc; m++)
-            packed[k * mc + m] = 0;
+        // no needed
+        //for(; m < mc; m++)
+        //    packed[k * mc + m] = 0;
 
     }
 }
@@ -62,8 +63,10 @@ static void pack_C(unsigned int lda, double* original, double* packed, unsigned 
         {
             packed[n * mr + m] = original[n * lda + m];
         }
-        for(; m < mr; m++)
-            packed[n * mr + m] = 0;
+
+        // no needed
+        //for(; m < mr; m++)
+        //    packed[n * mr + m] = 0;
     }
 }
 
