@@ -6,11 +6,12 @@ OPT = -O1
 CFLAGS = -g -Wall -std=gnu99 $(OPT) -mavx
 LDFLAGS = -Wall
 # librt is needed for clock_gettime
+
+# EDISON
 LDLIBS = -lrt
 
-#compiled ATLAS
-#LDLIBS = -L/home/hermetico/opt/atlas/lib -lptcblas -latlas -lpthread
-#LDLIBS = -L/home/hermetico/opt/atlas/lib -lrt -lblas -llapack
+# NOTEBOOK
+LDLIBS = -lrt -lblas -llapack
 
 targets = benchmark-naive benchmark-blocked benchmark-blas benchmark benchmark-plot
 objects = benchmark.o dgemm-naive.o dgemm-blocked.o dgemm-blas.o dgemm.o benchmark-plot.o
