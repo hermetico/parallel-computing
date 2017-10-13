@@ -13,8 +13,8 @@ LDLIBS = -lrt
 # NOTEBOOK
 LDLIBS = -lrt -lblas -llapack
 
-targets = benchmark-naive benchmark-blocked benchmark-blas benchmark benchmark-plot
-objects = benchmark.o dgemm-naive.o dgemm-blocked.o dgemm-blas.o dgemm.o benchmark-plot.o
+targets = benchmark benchmark-plot short-benchmark
+objects = dgemm.o benchmark-plot.o short-benchmark.o
 
 .PHONY : default
 default : all
@@ -22,15 +22,11 @@ default : all
 .PHONY : all
 all : clean $(targets)
 
-benchmark-naive : benchmark.o dgemm-naive.o 
-	$(CC) -o $@ $^ $(LDLIBS)
-benchmark-blocked : benchmark.o dgemm-blocked.o
-	$(CC) -o $@ $^ $(LDLIBS)
-benchmark-blas : benchmark.o dgemm-blas.o
-	$(CC) -o $@ $^ $(LDLIBS)
 benchmark : benchmark.o dgemm.o
 	$(CC) -o $@ $^ $(LDLIBS)
 benchmark-plot : benchmark-plot.o dgemm.o
+	$(CC) -o $@ $^ $(LDLIBS)
+short-benchmark : short-benchmark.o dgemm.o
 	$(CC) -o $@ $^ $(LDLIBS)
 
 %.o : %.c
