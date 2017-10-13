@@ -1,4 +1,4 @@
-const char* dgemm_desc = "dgemm custom implementation";
+const char* dgemm_desc = "dgemm Juan Marin's implementation";
 
 #include <stdlib.h>	 /* malloc, free, rand */
 #include <immintrin.h>
