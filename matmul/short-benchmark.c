@@ -13,7 +13,7 @@
 
 //#define MAX_SPEED 19.2 // defining Max Gflops/s per core on Edison.
 #define MAX_SPEED 24 // defining Max Gflops/s per core on intel i-7 4500U
-//#define MAX_SPEED 30.4 // defining Max Gflops/s per core on intel i-7 2600K
+//#define MAX_SPEED 35.2 // defining Max Gflops/s per core on intel i-7 2600K
 
 /* reference_dgemm wraps a call to the BLAS-3 routine DGEMM, via the standard FORTRAN interface - hence the reference semantics. */
 #define DGEMM dgemm_
