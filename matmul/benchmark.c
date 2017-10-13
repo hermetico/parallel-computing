@@ -94,7 +94,7 @@ int main (int argc, char **argv)
   buf = (double*) malloc (3 * nmax * nmax * sizeof(double));
   if (buf == NULL) die ("failed to allocate largest problem size");
 
-  double Mflops_s[nsizes],per[nsizes],aveper;
+  double Mflops_s[nsizes];
 
   /* For each test size */
   for (int isize = 0; isize < sizeof(test_sizes)/sizeof(test_sizes[0]); ++isize)
@@ -132,9 +132,8 @@ int main (int argc, char **argv)
   
     /* Storing Mflop rate and calculating percentage of peak */
     Mflops_s[isize] = Gflops_s*1000;
-    per[isize] = Gflops_s*100/MAX_SPEED;
 
-    printf ("Size: %d\tMflop/s: %8g\tPercentage:%6.2lf\n", n, Mflops_s[isize],per[isize]);
+    printf ("Size: %d\tMflop/s: %8g\n", n, Mflops_s[isize]);
 
     /* Ensure that error does not exceed the theoretical error bound. */
 
@@ -160,15 +159,6 @@ int main (int argc, char **argv)
       if (C[i] > 0)
 	die("*** FAILURE *** Error in matrix multiply exceeds componentwise error bounds.\n" );
   }
-
-  /* Calculating average percentage of peak reached by algorithm */
-  aveper=0;
-  for (int i=0; i<nsizes;i++)
-    aveper+= per[i];
-  aveper/=nsizes*1.0;
-  
-  /* Printing average percentage and grade to screen */
-  printf("Average percentage of Peak = %g\n",aveper);  
 
   free (buf);
 
