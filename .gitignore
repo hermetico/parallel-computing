@@ -37,4 +37,5 @@ matmul/cmake-build-debug/
 matmul-imada/cmake-build-debug/
 matmul-cpp/cmake-build-debug/
 intrinsics/cmake-build-debug/
+particles/cmake-build-debug/
 
