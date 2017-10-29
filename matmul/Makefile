@@ -2,18 +2,19 @@
 # This makefile is intended for the GNU C compiler. To change compilers, you need to type something like: "module swap PrgEnv-pgi PrgEnv-gnu" See the NERSC documentation for available compilers.
 
 CC = cc 
-OPT = -O1
+OPT = -O3
 CFLAGS = -g -Wall -std=gnu99 $(OPT) -mavx
 LDFLAGS = -Wall
 # librt is needed for clock_gettime
+
+# EDISON
+LDLIBS = -lrt
+
+# NOTEBOOK
 LDLIBS = -lrt -lblas -llapack
 
-#compiled ATLAS
-#LDLIBS = -L/home/hermetico/opt/atlas/lib -lptcblas -latlas -lpthread
-#LDLIBS = -L/home/hermetico/opt/atlas/lib -lrt -lblas -llapack
-
-targets = benchmark-naive benchmark-blocked benchmark-blas benchmark benchmark-plot
-objects = benchmark.o dgemm-naive.o dgemm-blocked.o dgemm-blas.o dgemm.o benchmark-plot.o
+targets = benchmark benchmark-plot short-benchmark
+objects = dgemm.o benchmark-plot.o short-benchmark.o
 
 .PHONY : default
 default : all
@@ -21,15 +22,11 @@ default : all
 .PHONY : all
 all : clean $(targets)
 
-benchmark-naive : benchmark.o dgemm-naive.o 
-	$(CC) -o $@ $^ $(LDLIBS)
-benchmark-blocked : benchmark.o dgemm-blocked.o
-	$(CC) -o $@ $^ $(LDLIBS)
-benchmark-blas : benchmark.o dgemm-blas.o
-	$(CC) -o $@ $^ $(LDLIBS)
 benchmark : benchmark.o dgemm.o
 	$(CC) -o $@ $^ $(LDLIBS)
 benchmark-plot : benchmark-plot.o dgemm.o
+	$(CC) -o $@ $^ $(LDLIBS)
+short-benchmark : short-benchmark.o dgemm.o
 	$(CC) -o $@ $^ $(LDLIBS)
 
 %.o : %.c
