@@ -1,0 +1,19 @@
+#!/bin/bash
+rm openmp.out
+
+export OMP_NUM_THREADS=1
+./openmp -p 1 -n 500 -no -s openmp.out
+./openmp -p 1 -n 1000 -no -s openmp.out
+./openmp -p 1 -n 2000 -no -s openmp.out
+./openmp -p 1 -n 5000 -no -s openmp.out
+./openmp -p 1 -n 10000 -no -s openmp.out
+
+export OMP_NUM_THREADS=2
+./openmp -p 1 -n 500 -no -s openmp.out
+./openmp -p 1 -n 1000 -no -s openmp.out
+./openmp -p 1 -n 2000 -no -s openmp.out
+./openmp -p 1 -n 5000 -no -s openmp.out
+./openmp -p 1 -n 10000 -no -s openmp.out
+
+./autograder -v openmp -s openmp.out
+

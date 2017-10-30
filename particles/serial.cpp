@@ -90,7 +90,7 @@ int main( int argc, char **argv )
 	init_particles( n, particles );
 
 
-	//vector<bin_t> bins;
+
     float bin_size = cutoff * 5;
 	int total_bins = ceil((size * size) / (bin_size * bin_size));
     int bins_per_row = ceil(sqrt(total_bins));

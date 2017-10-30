@@ -3,7 +3,58 @@
 #include <assert.h>
 #include <math.h>
 #include "common.h"
+#include <iostream>
 #include "omp.h"
+
+using namespace std;
+
+// the cutoff
+#define cutoff  0.01
+
+// the size of the grid
+extern double size;
+typedef struct bin_t bin_t;
+struct bin_t
+{
+    // bin pointers
+    bin_t* top = NULL;
+    bin_t* bottom = NULL;
+    bin_t* left = NULL;
+    bin_t* right = NULL;
+    bin_t* top_left = NULL;
+    bin_t* top_right = NULL;
+    bin_t* bottom_left = NULL;
+    bin_t* bottom_right = NULL;
+
+    // particles pointers
+    particle_t* first = NULL;
+    particle_t* last = NULL;
+    int size;
+};
+
+void show_bins(bin_t* bins, int bins_per_row){
+    cout << endl;
+    cout << endl;
+    for(int y = 0; y < bins_per_row; y++ )
+    {
+        for(int x = 0; x < bins_per_row; x++)
+        {
+            int num_particles = bins[y * bins_per_row + x].size;
+            cout << num_particles << ",   " ;
+        }
+        cout << endl;
+    }
+}
+
+void apply_forces_linked_particles(particle_t* a_particle, particle_t* b_particle, double* dmin, double* davg,  int* navg)
+{
+    while(b_particle)
+    {
+
+        apply_force(*(a_particle), *(b_particle), dmin, davg, navg);
+        b_particle = b_particle->next;
+    }
+}
 
 //
 //  benchmarking program
@@ -35,6 +86,60 @@ int main( int argc, char **argv )
 	set_size( n );
 	init_particles( n, particles );
 
+    float bin_size = cutoff * 5;
+    int total_bins = ceil((size * size) / (bin_size * bin_size));
+    int bins_per_row = ceil(sqrt(total_bins));
+
+    total_bins = bins_per_row * bins_per_row;
+
+    bin_t* bins = (bin_t*) malloc( total_bins * sizeof(bin_t));
+
+    for(int y = 0; y < bins_per_row; y++ )
+    {
+        for(int x = 0; x < bins_per_row; x++)
+        {
+            bin_t new_bin;
+            bins[y * bins_per_row + x] = new_bin;
+        }
+    }
+
+    // link bins
+    for(int y = 0; y < bins_per_row; y++ )
+    {
+        for(int x = 0; x < bins_per_row; x++)
+        {
+            bin_t* c_bin = &bins[y * bins_per_row + x];
+            if( y > 0)
+            {
+                c_bin->bottom = &bins[(y-1) * bins_per_row + x];
+
+                if (x > 0)
+                    c_bin->bottom_left = &bins[(y - 1) * bins_per_row + (x - 1)];
+
+                if (x < bins_per_row - 1)
+                    c_bin->bottom_right = &bins[(y - 1) * bins_per_row + (x + 1)];
+            }
+
+            if( y < bins_per_row - 1)
+            {
+                c_bin->top = &bins[(y+1) * bins_per_row + x];
+
+                if (x > 0)
+                    c_bin->top_left = &bins[(y + 1) * bins_per_row + (x - 1)];
+
+                if (x < bins_per_row - 1)
+                    c_bin->top_right = &bins[(y + 1) * bins_per_row + (x + 1)];
+            }
+
+            if (x > 0)
+                c_bin->left = &bins[y * bins_per_row + (x - 1)];
+
+            if (x < bins_per_row - 1)
+                c_bin->right = &bins[y * bins_per_row + (x + 1)];
+        }
+    }
+
+
 	//
 	//  simulate a number of time steps
 	//
@@ -47,17 +152,88 @@ int main( int argc, char **argv )
 	{
 		navg = 0;
 		davg = 0.0;
-	dmin = 1.0;
+	    dmin = 1.0;
+
+
+        // reset bins
+        #pragma omp for
+        for(int i = 0; i < total_bins; i++)
+        {
+            bins[i].size = 0;
+            bins[i].first = NULL;
+            bins[i].last = NULL;
+        }
+
+        // bind particles to bins
+        #pragma omp for
+        for(int i = 0; i < n; i++){
+
+            int binx = ceil(particles[i].x / bin_size) - 1;
+            int biny = ceil(particles[i].y / bin_size) - 1;
+
+
+            particles[i].next = NULL;
+            bin_t* c_bin = &bins[bins_per_row * biny + binx];
+
+            #pragma omp critical
+            if(!c_bin->first){
+                c_bin->first = &particles[i];
+                c_bin->last = &particles[i];
+            }else{
+                particle_t* tmp = c_bin->last;
+                c_bin->last = &particles[i];
+                tmp->next = c_bin->last;
+            }
+
+
+
+            c_bin->size++;
+
+        }
+
+
 		//
 		//  compute all forces
 		//
 		#pragma omp for reduction (+:navg) reduction(+:davg)
-		for( int i = 0; i < n; i++ )
-		{
-			particles[i].ax = particles[i].ay = 0;
-			for (int j = 0; j < n; j++ )
-				apply_force( particles[i], particles[j],&dmin,&davg,&navg);
-		}
+        for(int y = 0; y < bins_per_row; y++ )
+        {
+            for(int x = 0; x < bins_per_row; x++)
+            {
+                bin_t* c_bin = &bins[y * bins_per_row + x];
+
+                particle_t* c_particle = c_bin->first;
+                while(c_particle)
+                {
+
+                    c_particle->ax = 0;
+                    c_particle->ay = 0;
+
+                    // same bin
+                    apply_forces_linked_particles(c_particle, c_bin->first, &dmin, &davg, &navg);
+
+                    if(c_bin->top)
+                        apply_forces_linked_particles(c_particle, c_bin->top->first, &dmin, &davg, &navg);
+                    if(c_bin->bottom)
+                        apply_forces_linked_particles(c_particle, c_bin->bottom->first, &dmin, &davg, &navg);
+                    if(c_bin->left)
+                        apply_forces_linked_particles(c_particle, c_bin->left->first, &dmin, &davg, &navg);
+                    if(c_bin->right)
+                        apply_forces_linked_particles(c_particle, c_bin->right->first, &dmin, &davg, &navg);
+                    if(c_bin->top_left)
+                        apply_forces_linked_particles(c_particle, c_bin->top_left->first, &dmin, &davg, &navg);
+                    if(c_bin->top_right)
+                        apply_forces_linked_particles(c_particle, c_bin->top_right->first, &dmin, &davg, &navg);
+                    if(c_bin->bottom_left)
+                        apply_forces_linked_particles(c_particle, c_bin->bottom_left->first, &dmin, &davg, &navg);
+                    if(c_bin->bottom_right)
+                        apply_forces_linked_particles(c_particle, c_bin->bottom_right->first, &dmin, &davg, &navg);
+
+                    c_particle = c_particle->next;
+                }
+
+            }
+        }
 		
 		
 		//
@@ -123,6 +299,7 @@ int main( int argc, char **argv )
 		fclose( fsum );
 
 	free( particles );
+    free( bins );
 	if( fsave )
 		fclose( fsave );
 	
