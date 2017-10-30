@@ -33,7 +33,7 @@ struct bin_t
 	int size;
 };
 
-void show_bins(vector<bin_t> bins, int bins_per_row){
+void show_bins(bin_t* bins, int bins_per_row){
 	cout << endl;
 	cout << endl;
 	for(int y = 0; y < bins_per_row; y++ )
@@ -90,15 +90,22 @@ int main( int argc, char **argv )
 	init_particles( n, particles );
 
 
-	vector<bin_t> bins;
-	int total_bins = ceil((size * size) / (cutoff * cutoff));
-	int bins_per_row = ceil(sqrt(total_bins));
-	for(int y = 0; y < bins_per_row; y++ )
+	//vector<bin_t> bins;
+    float bin_size = cutoff * 5;
+	int total_bins = ceil((size * size) / (bin_size * bin_size));
+    int bins_per_row = ceil(sqrt(total_bins));
+
+    total_bins = bins_per_row * bins_per_row;
+
+    bin_t* bins = (bin_t*) malloc( total_bins * sizeof(bin_t));
+
+    for(int y = 0; y < bins_per_row; y++ )
 	{
 		for(int x = 0; x < bins_per_row; x++)
 		{
 			bin_t new_bin;
-			bins.push_back(new_bin);
+			//bins.push_back(new_bin);
+            bins[y * bins_per_row + x] = new_bin;
 		}
 	}
 
@@ -150,7 +157,7 @@ int main( int argc, char **argv )
 		dmin = 1.0;
 
 		// reset bins
-		for(int i = 0; i< bins.size(); i++)
+		for(int i = 0; i < total_bins; i++)
 		{
 			bins[i].size = 0;
 			bins[i].first = NULL;
@@ -161,8 +168,8 @@ int main( int argc, char **argv )
 		for(int i = 0; i < n; i++){
 			//TODO check edge case particle position 0.0
 
-			int binx = ceil(particles[i].x / cutoff) - 1;
-			int biny = ceil(particles[i].y / cutoff) - 1;
+			int binx = ceil(particles[i].x / bin_size) - 1;
+			int biny = ceil(particles[i].y / bin_size) - 1;
 
 
 			particles[i].next = NULL;
@@ -279,6 +286,7 @@ int main( int argc, char **argv )
 	if( fsum )
 		fclose( fsum );	
 	free( particles );
+    free(bins);
 	if( fsave )
 		fclose( fsave );
 	
