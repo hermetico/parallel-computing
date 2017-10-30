@@ -30,7 +30,7 @@ struct bin_t
 	// particles pointers
 	particle_t* first = NULL;
 	particle_t* last = NULL;
-	int size = 0;
+	int size;
 };
 
 void show_bins(vector<bin_t> bins, int bins_per_row){
