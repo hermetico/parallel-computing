@@ -152,6 +152,7 @@ int main( int argc, char **argv )
 
 		// bind particles to bins
 		for(int i = 0; i < n; i++){
+			//TODO check edge case particle position 0.0
 			int binx = ceil(particles[i].x / cutoff) - 1;
 			int biny = ceil(particles[i].y / cutoff) - 1;
 			bins[bins_per_row * biny + binx].particles.push_back(&particles[i]);
@@ -166,12 +167,14 @@ int main( int argc, char **argv )
 			for(int x = 0; x < bins_per_row; x++)
 			{
 				bin_t* c_bin = &bins[y * bins_per_row + x];
+
 				for(int i = 0; i < c_bin->particles.size(); i++)
 				{
 
 					particle_t* c_particle = c_bin->particles[i];
 					c_particle->ax = 0;
 					c_particle->ay = 0;
+
 					// same bin
 					apply_forces(c_particle, c_bin->particles, &dmin, &davg, &navg);
 
