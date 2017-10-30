@@ -17,6 +17,7 @@ extern double size;
 typedef struct bin_t bin_t;
 struct bin_t
 {
+	// bin pointers
 	bin_t* top = NULL;
 	bin_t* bottom = NULL;
 	bin_t* left = NULL;
@@ -25,7 +26,11 @@ struct bin_t
 	bin_t* top_right = NULL;
 	bin_t* bottom_left = NULL;
 	bin_t* bottom_right = NULL;
-	vector<particle_t*> particles;
+
+	// particles pointers
+	particle_t* first = NULL;
+	particle_t* last = NULL;
+	int size = 0;
 };
 
 void show_bins(vector<bin_t> bins, int bins_per_row){
@@ -35,7 +40,7 @@ void show_bins(vector<bin_t> bins, int bins_per_row){
 	{
 		for(int x = 0; x < bins_per_row; x++)
 		{
-			int num_particles = bins[y * bins_per_row + x].particles.size();
+			int num_particles = bins[y * bins_per_row + x].size;
 			cout << num_particles << ",   " ;
 		}
 		cout << endl;
@@ -43,12 +48,13 @@ void show_bins(vector<bin_t> bins, int bins_per_row){
 }
 
 
-void apply_forces(particle_t* a_particle, vector<particle_t*> particles, double* dmin, double* davg,  int* navg)
+void apply_forces_linked_particles(particle_t* a_particle, particle_t* b_particle, double* dmin, double* davg,  int* navg)
 {
-	for(int i=0; i< particles.size(); i++)
+	while(b_particle)
 	{
 
-		apply_force(*(a_particle), *(particles[i]), dmin, davg, navg);
+		apply_force(*(a_particle), *(b_particle), dmin, davg, navg);
+		b_particle = b_particle->next;
 	}
 }
 
@@ -92,7 +98,6 @@ int main( int argc, char **argv )
 		for(int x = 0; x < bins_per_row; x++)
 		{
 			bin_t new_bin;
-			//new_bin->particles = vector<particle_t*>;
 			bins.push_back(new_bin);
 		}
 	}
@@ -147,15 +152,32 @@ int main( int argc, char **argv )
 		// reset bins
 		for(int i = 0; i< bins.size(); i++)
 		{
-			bins[i].particles.clear();
+			bins[i].size = 0;
+			bins[i].first = NULL;
+			bins[i].last = NULL;
 		}
 
 		// bind particles to bins
 		for(int i = 0; i < n; i++){
 			//TODO check edge case particle position 0.0
+
 			int binx = ceil(particles[i].x / cutoff) - 1;
 			int biny = ceil(particles[i].y / cutoff) - 1;
-			bins[bins_per_row * biny + binx].particles.push_back(&particles[i]);
+
+
+			particles[i].next = NULL;
+			bin_t* c_bin = &bins[bins_per_row * biny + binx];
+
+			if(!c_bin->first){
+				c_bin->first = &particles[i];
+				c_bin->last = &particles[i];
+			}else{
+				particle_t* tmp = c_bin->last;
+				c_bin->last = &particles[i];
+				tmp->next = c_bin->last;
+			}
+			c_bin->size++;
+
 		}
 
 		//show_bins(bins, bins_per_row);
@@ -167,34 +189,35 @@ int main( int argc, char **argv )
 			for(int x = 0; x < bins_per_row; x++)
 			{
 				bin_t* c_bin = &bins[y * bins_per_row + x];
-
-				for(int i = 0; i < c_bin->particles.size(); i++)
+				
+				particle_t* c_particle = c_bin->first;
+				while(c_particle)
 				{
 
-					particle_t* c_particle = c_bin->particles[i];
 					c_particle->ax = 0;
 					c_particle->ay = 0;
 
 					// same bin
-					apply_forces(c_particle, c_bin->particles, &dmin, &davg, &navg);
+					apply_forces_linked_particles(c_particle, c_bin->first, &dmin, &davg, &navg);
 
 					if(c_bin->top)
-						apply_forces(c_particle, c_bin->top->particles, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, c_bin->top->first, &dmin, &davg, &navg);
 					if(c_bin->bottom)
-						apply_forces(c_particle, c_bin->bottom->particles, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, c_bin->bottom->first, &dmin, &davg, &navg);
 					if(c_bin->left)
-						apply_forces(c_particle, c_bin->left->particles, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, c_bin->left->first, &dmin, &davg, &navg);
 					if(c_bin->right)
-						apply_forces(c_particle, c_bin->right->particles, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, c_bin->right->first, &dmin, &davg, &navg);
 					if(c_bin->top_left)
-						apply_forces(c_particle, c_bin->top_left->particles, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, c_bin->top_left->first, &dmin, &davg, &navg);
 					if(c_bin->top_right)
-						apply_forces(c_particle, c_bin->top_right->particles, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, c_bin->top_right->first, &dmin, &davg, &navg);
 					if(c_bin->bottom_left)
-						apply_forces(c_particle, c_bin->bottom_left->particles, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, c_bin->bottom_left->first, &dmin, &davg, &navg);
 					if(c_bin->bottom_right)
-						apply_forces(c_particle, c_bin->bottom_right->particles, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, c_bin->bottom_right->first, &dmin, &davg, &navg);
 
+					c_particle = c_particle->next;
 				}
 
 			}
