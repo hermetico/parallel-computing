@@ -86,14 +86,16 @@ int main( int argc, char **argv )
 	set_size( n );
 	init_particles( n, particles );
 
-    float bin_size = cutoff * 5;
+    float bin_size = cutoff;
     int total_bins = ceil((size * size) / (bin_size * bin_size));
     int bins_per_row = ceil(sqrt(total_bins));
 
     total_bins = bins_per_row * bins_per_row;
 
     bin_t* bins = (bin_t*) malloc( total_bins * sizeof(bin_t));
-
+    omp_lock_t* bin_locks = (omp_lock_t*) malloc(total_bins * sizeof(omp_lock_t));
+    for (int i = 0; i < total_bins; ++i)
+        omp_init_lock(bin_locks + i);
     for(int y = 0; y < bins_per_row; y++ )
     {
         for(int x = 0; x < bins_per_row; x++)
@@ -150,11 +152,13 @@ int main( int argc, char **argv )
 	numthreads = omp_get_num_threads();
 	for( int step = 0; step < NSTEPS; step++ )
 	{
-		navg = 0;
-		davg = 0.0;
-	    dmin = 1.0;
+        #pragma omp master
+        {
+            navg = 0;
+            davg = 0.0;
+        }
 
-
+        dmin = 1.0;
         // reset bins
         #pragma omp for
         for(int i = 0; i < total_bins; i++)
@@ -173,9 +177,10 @@ int main( int argc, char **argv )
 
 
             particles[i].next = NULL;
-            bin_t* c_bin = &bins[bins_per_row * biny + binx];
+            int bin_id = bins_per_row * biny + binx;
+            bin_t* c_bin = &bins[bin_id];
 
-            #pragma omp critical
+            omp_set_lock(&bin_locks[bin_id]);
             if(!c_bin->first){
                 c_bin->first = &particles[i];
                 c_bin->last = &particles[i];
@@ -184,10 +189,10 @@ int main( int argc, char **argv )
                 c_bin->last = &particles[i];
                 tmp->next = c_bin->last;
             }
-
-
-            #pragma omp atomic
             c_bin->size++;
+            omp_unset_lock(&bin_locks[bin_id]);
+
+
 
         }
 
