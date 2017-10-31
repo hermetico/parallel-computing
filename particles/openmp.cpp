@@ -110,7 +110,7 @@ int main( int argc, char **argv )
 	set_size( n );
 	init_particles( n, particles );
 
-    float bin_size = cutoff;
+    float bin_size = cutoff * 5;
     int total_bins = ceil((size * size) / (bin_size * bin_size));
     int bins_per_row = ceil(sqrt(total_bins));
 
@@ -166,28 +166,9 @@ int main( int argc, char **argv )
         }
     }
 
-    // fill bins with particles
-
-    for(int i = 0; i < n; i++){
-        //TODO check edge case particle position 0.0
 
 
-        int particle_owner = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
 
-        particles[i].next = NULL;
-        bin_t* c_bin = &bins[particle_owner];
-
-
-        if(!c_bin->first){
-            c_bin->first = &particles[i];
-            c_bin->last = &particles[i];
-        }else{
-            particle_t* tmp = c_bin->last;
-            c_bin->last = &particles[i];
-            tmp->next = c_bin->last;
-        }
-
-    }
 
 
 
@@ -200,6 +181,29 @@ int main( int argc, char **argv )
 	{
 	numthreads = omp_get_num_threads();
 
+    // fill bins with particles
+    #pragma omp for
+    for(int i = 0; i < n; i++){
+        //TODO check edge case particle position 0.0
+
+
+        int particle_owner = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
+
+        particles[i].next = NULL;
+        bin_t* c_bin = &bins[particle_owner];
+
+        omp_set_lock(&bin_locks[particle_owner]);
+        if(!c_bin->first){
+            c_bin->first = &particles[i];
+            c_bin->last = &particles[i];
+        }else{
+            particle_t* tmp = c_bin->last;
+            c_bin->last = &particles[i];
+            tmp->next = c_bin->last;
+        }
+        omp_unset_lock(&bin_locks[particle_owner]);
+
+    }
 
 	for( int step = 0; step < NSTEPS; step++ )
 	{
