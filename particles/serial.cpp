@@ -30,7 +30,6 @@ struct bin_t
 	// particles pointers
 	particle_t* first = NULL;
 	particle_t* last = NULL;
-	int size;
 };
 
 void show_bins(bin_t* bins, int bins_per_row){
@@ -40,7 +39,8 @@ void show_bins(bin_t* bins, int bins_per_row){
 	{
 		for(int x = 0; x < bins_per_row; x++)
 		{
-			int num_particles = bins[y * bins_per_row + x].size;
+            //TODO change this
+			int num_particles = 0; //bins[y * bins_per_row + x].size;
 			cout << num_particles << ",   " ;
 		}
 		cout << endl;
@@ -110,7 +110,7 @@ int main( int argc, char **argv )
 
 
 	//vector<bin_t> bins;
-    double bin_size = cutoff * 5;
+    double bin_size = cutoff * 3;
 	int total_bins = ceil((size * size) / (bin_size * bin_size));
     int bins_per_row = ceil(sqrt(total_bins));
 
@@ -168,7 +168,34 @@ int main( int argc, char **argv )
 	//  simulate a number of time steps
 	//
 	double simulation_time = read_timer( );
-	
+
+    // init bins
+    for(int i = 0; i < total_bins; i++)
+    {
+        bins[i].first = NULL;
+        bins[i].last = NULL;
+    }
+
+    // asign particles initially
+    for(int i = 0; i < n; i++){
+        //TODO check edge case particle position 0.0
+
+
+        int particle_owner = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
+
+        particles[i].next = NULL;
+        bin_t* c_bin = &bins[particle_owner];
+
+        if(!c_bin->first){
+            c_bin->first = &particles[i];
+            c_bin->last = &particles[i];
+        }else{
+            particle_t* tmp = c_bin->last;
+            c_bin->last = &particles[i];
+            tmp->next = c_bin->last;
+        }
+    }
+
 	for( int step = 0; step < NSTEPS; step++ )
 	{
 		navg = 0;
@@ -176,62 +203,18 @@ int main( int argc, char **argv )
 		dmin = 1.0;
 
 		// reset bins
+        /*
 		for(int i = 0; i < total_bins; i++)
 		{
 			bins[i].size = 0;
 			bins[i].first = NULL;
 			bins[i].last = NULL;
 		}
-
-		// check for particles that are now outside the bin
-        for( int i  = 0; i < total_bins; i++){
-			int owner;
-
-            //FIRST particle
-            // check for the first particle
-            particle_t* first = bins[i].first;
-            while(first == bins[i].first){
-                owner = get_bin_id(bins_per_row, bin_size, first->x, first->y);
-                if(owner != i){
-                    //unlink first particle
-                    bins[i].first = first->next;
-                    notify_bin(&bins[owner], first);
-                }
-                // check first again
-                first = bins[i].first;
-            }
-
-            // MIDDLE particles
-            // now we can look ahead one particle
-            particle_t* prev = bins[i].first;
-            particle_t* current = prev->next;
-			while(current){
-                owner = get_bin_id(bins_per_row, bin_size, current->x, current->y);
-
-				//checks if a particle corresponds to a new bin
-				if(i != owner)
-                {
-                    // unlink the current particle
-                    prev->next = current->next;
-                    notify_bin(&bins[owner], current);
-				}
-
-                if(!prev->next)// is it the last one now?
-                {
-                    bins[i].last = prev;
-                    current = NULL;
-                }
-                else
-                {
-                    // update the previous one
-                    prev = prev->next;
-                    // update the next one
-                    current = prev->next;
-                }
-			}
+         */
 
 
-		}
+
+        /*
 		// bind particles to bins
 		for(int i = 0; i < n; i++){
 			//TODO check edge case particle position 0.0
@@ -252,6 +235,7 @@ int main( int argc, char **argv )
 			}
 			c_bin->size++;
 		}
+        */
 
 		//show_bins(bins, bins_per_row);
 
@@ -302,6 +286,8 @@ int main( int argc, char **argv )
 		for( int i = 0; i < n; i++ ) 
 			move( particles[i] );
 
+
+
 		if( find_option( argc, argv, "-no" ) == -1 )
 		{
 		  //
@@ -319,6 +305,63 @@ int main( int argc, char **argv )
 		  if( fsave && (step%SAVEFREQ) == 0 )
 			  save( fsave, n, particles );
 		}
+
+
+
+
+        // check for particles that are now outside the bin
+        for( int i  = 0; i < total_bins; i++)
+        {
+            int owner;
+
+            //FIRST particle
+            // check for the first particle
+            particle_t* first = bins[i].first;
+            while(first == bins[i].first && first){
+                owner = get_bin_id(bins_per_row, bin_size, first->x, first->y);
+                if(owner != i){
+                    //unlink first particle
+                    bins[i].first = first->next;
+                    notify_bin(&bins[owner], first);
+                }
+                // check first again
+                first = first->next;
+            }
+
+            // MIDDLE particles and last
+            // now we can look ahead one particle
+            particle_t* prev = bins[i].first;
+            particle_t* current;
+            while(prev){
+                current = prev->next;
+                if(!current) break;
+                owner = get_bin_id(bins_per_row, bin_size, current->x, current->y);
+
+                //checks if a particle corresponds to a new bin
+                if(i != owner)
+                {
+                    // unlink the current particle
+                    prev->next = current->next;
+                    notify_bin(&bins[owner], current);
+                }
+
+                if(!prev->next)// is it the last one now?
+                {
+                    bins[i].last = prev;
+                    prev = NULL;
+                }
+                else
+                {
+                    // update the previous one
+                    prev = prev->next;
+                }
+            }
+
+            // if current == NULL, prev is the last one
+            bins[i].last = prev;
+
+        }
+
 	}
 	simulation_time = read_timer( ) - simulation_time;
 	
