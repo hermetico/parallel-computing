@@ -58,6 +58,17 @@ void apply_forces_linked_particles(particle_t* a_particle, particle_t* b_particl
 	}
 }
 
+void notify_bin(bin_t* bin, particle_t* particle)
+{
+    //adds the particle at the beginnning of the bin
+
+    //unlink the current first
+    particle_t* tmp = bin->first;
+    //ling the particle to the first
+    particle->next = tmp;
+    //link the bin to the new first particle
+    bin->first = particle;
+}
 
 int get_bin_id(int bins_per_row, double bin_size,  double x, double y){
 	int binx = (int) ceil(x / bin_size) - 1;
@@ -171,25 +182,56 @@ int main( int argc, char **argv )
 			bins[i].first = NULL;
 			bins[i].last = NULL;
 		}
-        /*
+
 		// check for particles that are now outside the bin
         for( int i  = 0; i < total_bins; i++){
-			particle_t* particle = bins[i].first;
-			while(particle){
-				int binx = (int) ceil(particle->x / bin_size) - 1;
-				int biny = (int) ceil(particle->y / bin_size) - 1;
+			int owner;
 
-				int owner = bins_per_row * biny + binx;
+            //FIRST particle
+            // check for the first particle
+            particle_t* first = bins[i].first;
+            while(first == bins[i].first){
+                owner = get_bin_id(bins_per_row, bin_size, first->x, first->y);
+                if(owner != i){
+                    //unlink first particle
+                    bins[i].first = first->next;
+                    notify_bin(&bins[owner], first);
+                }
+                // check first again
+                first = bins[i].first;
+            }
+
+            // MIDDLE particles
+            // now we can look ahead one particle
+            particle_t* prev = bins[i].first;
+            particle_t* current = prev->next;
+			while(current){
+                owner = get_bin_id(bins_per_row, bin_size, current->x, current->y);
+
 				//checks if a particle corresponds to a new bin
-				if(i != owner){
-
+				if(i != owner)
+                {
+                    // unlink the current particle
+                    prev->next = current->next;
+                    notify_bin(&bins[owner], current);
 				}
 
-				// move to the next one
-				particle = particle->next;
+                if(!prev->next)// is it the last one now?
+                {
+                    bins[i].last = prev;
+                    current = NULL;
+                }
+                else
+                {
+                    // update the previous one
+                    prev = prev->next;
+                    // update the next one
+                    current = prev->next;
+                }
 			}
 
-		}*/
+
+		}
 		// bind particles to bins
 		for(int i = 0; i < n; i++){
 			//TODO check edge case particle position 0.0
