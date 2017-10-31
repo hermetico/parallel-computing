@@ -58,6 +58,14 @@ void apply_forces_linked_particles(particle_t* a_particle, particle_t* b_particl
 	}
 }
 
+
+int get_bin_id(int bins_per_row, double bin_size,  double x, double y){
+	int binx = (int) ceil(x / bin_size) - 1;
+	int biny = (int) ceil(y / bin_size) - 1;
+
+	return  bins_per_row * biny + binx;
+}
+
 //
 //  benchmarking program
 //
@@ -91,7 +99,7 @@ int main( int argc, char **argv )
 
 
 	//vector<bin_t> bins;
-    float bin_size = cutoff * 5;
+    double bin_size = cutoff * 5;
 	int total_bins = ceil((size * size) / (bin_size * bin_size));
     int bins_per_row = ceil(sqrt(total_bins));
 
@@ -163,17 +171,34 @@ int main( int argc, char **argv )
 			bins[i].first = NULL;
 			bins[i].last = NULL;
 		}
+        /*
+		// check for particles that are now outside the bin
+        for( int i  = 0; i < total_bins; i++){
+			particle_t* particle = bins[i].first;
+			while(particle){
+				int binx = (int) ceil(particle->x / bin_size) - 1;
+				int biny = (int) ceil(particle->y / bin_size) - 1;
 
+				int owner = bins_per_row * biny + binx;
+				//checks if a particle corresponds to a new bin
+				if(i != owner){
+
+				}
+
+				// move to the next one
+				particle = particle->next;
+			}
+
+		}*/
 		// bind particles to bins
 		for(int i = 0; i < n; i++){
 			//TODO check edge case particle position 0.0
 
-			int binx = ceil(particles[i].x / bin_size) - 1;
-			int biny = ceil(particles[i].y / bin_size) - 1;
 
+			int particle_owner = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
 
 			particles[i].next = NULL;
-			bin_t* c_bin = &bins[bins_per_row * biny + binx];
+			bin_t* c_bin = &bins[particle_owner];
 
 			if(!c_bin->first){
 				c_bin->first = &particles[i];
@@ -184,7 +209,6 @@ int main( int argc, char **argv )
 				tmp->next = c_bin->last;
 			}
 			c_bin->size++;
-
 		}
 
 		//show_bins(bins, bins_per_row);
