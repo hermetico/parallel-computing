@@ -6,5 +6,6 @@ rm serial.out
 ./serial -n 2000 -no -s serial.out
 ./serial -n 5000 -no -s serial.out
 ./serial -n 10000 -no -s serial.out
+./serial -n 20000 -no -s serial.out
 # now run the autograder
 ./autograder -v serial -s serial.out
