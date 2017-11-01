@@ -178,7 +178,8 @@ int main( int argc, char **argv )
 		#pragma omp for
 		for(int i = 0; i < n; i++){
 			int particle_owner = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
-
+			particles[i].ax = 0;
+			particles[i].ay = 0;
 			omp_set_lock(&bin_locks[particle_owner]);
 			particles[i].next = bins[particle_owner].first;
 			bins[particle_owner].first = &particles[i];
@@ -199,10 +200,6 @@ int main( int argc, char **argv )
 				particle_t* c_particle = c_bin->first;
 				while(c_particle)
 				{
-
-					c_particle->ax = 0;
-					c_particle->ay = 0;
-
 					// same bin
 					apply_forces_linked_particles(c_particle, c_bin->first, &dmin, &davg, &navg);
 
