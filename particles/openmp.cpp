@@ -126,17 +126,13 @@ int main( int argc, char **argv )
 	double simulation_time = read_timer( );
 
 	// setups locks
+	#pragma omp parallel for
 	for (int i = 0; i < total_bins; ++i) {
 		omp_init_lock(bin_locks + i);
 	}
 
-	#pragma omp parallel private(dmin)
-	{
-
-	numthreads = omp_get_num_threads();
-
-
 	// creates bins
+	#pragma omp parallel for collapse(2)
 	for(int y = 0; y < bins_per_row; y++ )
 	{
 		for(int x = 0; x < bins_per_row; x++)
@@ -147,6 +143,7 @@ int main( int argc, char **argv )
 	}
 
 	// Setup bins
+	#pragma omp parallel for collapse(2)
 	for(int y = 0; y < bins_per_row; y++ )
 	{
 		for(int x = 0; x < bins_per_row; x++)
@@ -183,6 +180,7 @@ int main( int argc, char **argv )
 	}
 
 	//initializes bins with particles
+	#pragma omp parallel for
 	for(int i = 0; i < n; i++){
 		//TODO check edge case particle position 0.0
 
@@ -204,6 +202,14 @@ int main( int argc, char **argv )
 		omp_unset_lock(&bin_locks[particle_owner]);
 
 	}
+
+	#pragma omp parallel private(dmin)
+	{
+
+	numthreads = omp_get_num_threads();
+
+
+
 
 	// Run the main loop
 	for( int step = 0; step < NSTEPS; step++ )
