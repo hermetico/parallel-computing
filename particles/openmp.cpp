@@ -16,37 +16,20 @@ extern double size;
 typedef struct bin_t bin_t;
 struct bin_t
 {
-	// bin pointers
-	bin_t* top = NULL;
-	bin_t* bottom = NULL;
-	bin_t* left = NULL;
-	bin_t* right = NULL;
-	bin_t* top_left = NULL;
-	bin_t* top_right = NULL;
-	bin_t* bottom_left = NULL;
-	bin_t* bottom_right = NULL;
+	// neighbor bins
+	int top;
+	int bottom;
+	int left;
+	int right;
+	int top_left;
+	int top_right;
+	int bottom_left;
+	int bottom_right;
 
 	// particles pointers
-	particle_t* first = NULL;
-	particle_t* last = NULL;
-	particle_t* new_ones_first = NULL;
-	particle_t* new_ones_last = NULL;
+	particle_t* first;
 };
 
-void show_bins(bin_t* bins, int bins_per_row){
-	cout << endl;
-	cout << endl;
-	for(int y = 0; y < bins_per_row; y++ )
-	{
-		for(int x = 0; x < bins_per_row; x++)
-		{
-			//TODO change this
-			int num_particles = 0; //bins[y * bins_per_row + x].size;
-			cout << num_particles << ",   " ;
-		}
-		cout << endl;
-	}
-}
 
 void apply_forces_linked_particles(particle_t* a_particle, particle_t* b_particle, double* dmin, double* davg,  int* navg)
 {
@@ -57,20 +40,6 @@ void apply_forces_linked_particles(particle_t* a_particle, particle_t* b_particl
 	}
 }
 
-void notify_bin(bin_t* bin, particle_t* particle)
-{
-	//adds the particle to the bin, in its new particles linked list
-
-	particle->next = NULL;
-	if(!bin->new_ones_first){
-		bin->new_ones_first = particle;
-		bin->new_ones_last = particle;
-	}else{
-		particle_t* tmp = bin->new_ones_last;
-		bin->new_ones_last = particle;
-		tmp->next = bin->new_ones_last;
-	}
-}
 
 int get_bin_id(int bins_per_row, double bin_size,  double x, double y){
 	int binx = (int) ceil(x / bin_size) - 1;
@@ -109,7 +78,7 @@ int main( int argc, char **argv )
 	set_size( n );
 	init_particles( n, particles );
 
-	double bin_size = cutoff * 2.5;
+	double bin_size = cutoff;
 	int total_bins = ceil((size * size) / (bin_size * bin_size));
 	int bins_per_row = ceil(sqrt(total_bins));
 
@@ -132,14 +101,20 @@ int main( int argc, char **argv )
 	}
 
 	// creates bins
-	#pragma omp parallel for collapse(2)
-	for(int y = 0; y < bins_per_row; y++ )
+	#pragma omp parallel for
+	for(int y = 0; y < total_bins; y++ )
 	{
-		for(int x = 0; x < bins_per_row; x++)
-		{
-			bin_t new_bin;
-			bins[y * bins_per_row + x] = new_bin;
-		}
+		bin_t new_bin;
+		new_bin.top = 0;
+		new_bin.bottom = 0;
+		new_bin.left = 0;
+		new_bin.right = 0;
+		new_bin.top_left = 0;
+		new_bin.top_right = 0;
+		new_bin.bottom_left = 0;
+		new_bin.bottom_right = 0;
+		new_bin.first = NULL;
+		bins[y] = new_bin;
 	}
 
 	// Setup bins
@@ -151,57 +126,34 @@ int main( int argc, char **argv )
 			bin_t* c_bin = &bins[y * bins_per_row + x];
 			if( y > 0)
 			{
-				c_bin->bottom = &bins[(y-1) * bins_per_row + x];
+				c_bin->bottom = (y-1) * bins_per_row + x;
 
 				if (x > 0)
-					c_bin->bottom_left = &bins[(y - 1) * bins_per_row + (x - 1)];
+					c_bin->bottom_left = (y - 1) * bins_per_row + (x - 1);
 
 				if (x < bins_per_row - 1)
-					c_bin->bottom_right = &bins[(y - 1) * bins_per_row + (x + 1)];
+					c_bin->bottom_right = (y - 1) * bins_per_row + (x + 1);
 			}
 
 			if( y < bins_per_row - 1)
 			{
-				c_bin->top = &bins[(y+1) * bins_per_row + x];
+				c_bin->top = (y+1) * bins_per_row + x;
 
 				if (x > 0)
-					c_bin->top_left = &bins[(y + 1) * bins_per_row + (x - 1)];
+					c_bin->top_left = (y + 1) * bins_per_row + (x - 1);
 
 				if (x < bins_per_row - 1)
-					c_bin->top_right = &bins[(y + 1) * bins_per_row + (x + 1)];
+					c_bin->top_right = (y + 1) * bins_per_row + (x + 1);
 			}
 
 			if (x > 0)
-				c_bin->left = &bins[y * bins_per_row + (x - 1)];
+				c_bin->left = y * bins_per_row + (x - 1);
 
 			if (x < bins_per_row - 1)
-				c_bin->right = &bins[y * bins_per_row + (x + 1)];
+				c_bin->right = y * bins_per_row + (x + 1);
 		}
 	}
 
-	//initializes bins with particles
-	#pragma omp parallel for
-	for(int i = 0; i < n; i++){
-		//TODO check edge case particle position 0.0
-
-
-		int particle_owner = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
-
-		particles[i].next = NULL;
-		bin_t* c_bin = &bins[particle_owner];
-
-		omp_set_lock(&bin_locks[particle_owner]);
-		if(!c_bin->first){
-			c_bin->first = &particles[i];
-			c_bin->last = &particles[i];
-		}else{
-			particle_t* tmp = c_bin->last;
-			c_bin->last = &particles[i];
-			tmp->next = c_bin->last;
-		}
-		omp_unset_lock(&bin_locks[particle_owner]);
-
-	}
 
 	#pragma omp parallel private(dmin)
 	{
@@ -220,6 +172,19 @@ int main( int argc, char **argv )
 			davg = 0.0;
 		}
 		dmin = 1.0;
+
+
+
+		#pragma omp for
+		for(int i = 0; i < n; i++){
+			int particle_owner = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
+
+			omp_set_lock(&bin_locks[particle_owner]);
+			particles[i].next = bins[particle_owner].first;
+			bins[particle_owner].first = &particles[i];
+			omp_unset_lock(&bin_locks[particle_owner]);
+		}
+
 
 		//
 		//  compute all forces
@@ -242,21 +207,21 @@ int main( int argc, char **argv )
 					apply_forces_linked_particles(c_particle, c_bin->first, &dmin, &davg, &navg);
 
 					if(c_bin->top)
-						apply_forces_linked_particles(c_particle, c_bin->top->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->top].first, &dmin, &davg, &navg);
 					if(c_bin->bottom)
-						apply_forces_linked_particles(c_particle, c_bin->bottom->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->bottom].first, &dmin, &davg, &navg);
 					if(c_bin->left)
-						apply_forces_linked_particles(c_particle, c_bin->left->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->left].first, &dmin, &davg, &navg);
 					if(c_bin->right)
-						apply_forces_linked_particles(c_particle, c_bin->right->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->right].first, &dmin, &davg, &navg);
 					if(c_bin->top_left)
-						apply_forces_linked_particles(c_particle, c_bin->top_left->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->top_left].first, &dmin, &davg, &navg);
 					if(c_bin->top_right)
-						apply_forces_linked_particles(c_particle, c_bin->top_right->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->top_right].first, &dmin, &davg, &navg);
 					if(c_bin->bottom_left)
-						apply_forces_linked_particles(c_particle, c_bin->bottom_left->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->bottom_left].first, &dmin, &davg, &navg);
 					if(c_bin->bottom_right)
-						apply_forces_linked_particles(c_particle, c_bin->bottom_right->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->bottom_right].first, &dmin, &davg, &navg);
 
 					c_particle = c_particle->next;
 				}
@@ -294,82 +259,10 @@ int main( int argc, char **argv )
 			  save( fsave, n, particles );
 		}
 
-		// check for particles that are now outside the bin
-		#pragma omp for
-		for( int i  = 0; i < total_bins; i++)
-		{
-			int owner;
-
-			// FIRST particle
-			// first particle needs to be treated on a different manner
-			// this could be avoided with a double linked list
-			particle_t* first = bins[i].first;
-			while(first == bins[i].first && first){
-				owner = get_bin_id(bins_per_row, bin_size, first->x, first->y);
-				if(owner != i){
-					//unlink first particle
-					bins[i].first = first->next;
-					omp_set_lock(&bin_locks[owner]); // lock over the owner bin
-					notify_bin(&bins[owner], first);
-					omp_unset_lock(&bin_locks[owner]); // unlock
-				}
-				// check first again
-				first = first->next;
-			}
-
-			// MIDDLE particles and last
-			// now we can look ahead one particle
-			particle_t* prev = bins[i].first;
-			particle_t* current;
-			while(prev){
-				current = prev->next;
-				if(!current) break; // shortcut
-				owner = get_bin_id(bins_per_row, bin_size, current->x, current->y);
-
-				//checks if a particle corresponds to a new bin
-				if(i != owner)
-				{
-					// unlink the current particle
-					prev->next = current->next;
-					omp_set_lock(&bin_locks[owner]); // lock over the owner bin
-					notify_bin(&bins[owner], current);
-					omp_unset_lock(&bin_locks[owner]); // unlock
-				}
-
-				if(!prev->next)// is this the last one now?
-				{
-					bins[i].last = prev;
-					prev = NULL;
-				}
-				else
-				{
-					// update the previous one
-					prev = prev->next;
-				}
-			}
-
-			// when leaving the while, prev is always the last particle
-			bins[i].last = prev;
-
-		}
+		// reset bins
 		#pragma omp for nowait
-		// marge particles list
-		for( int i  = 0; i < total_bins; i++)
-		{
-			if(bins[i].new_ones_first && bins[i].last){ // there were already particles in the bin, merges both lists
-				particle_t* tmp = bins[i].last;
-				tmp->next = bins[i].new_ones_first;
-				bins[i].last = bins[i].new_ones_last;
-			}else if(bins[i].new_ones_first) // there weren't any other particles previously
-			{
-				bins[i].first = bins[i].new_ones_first;
-				bins[i].last = bins[i].new_ones_last;
-			}
-
-			bins[i].new_ones_first = NULL;
-			bins[i].new_ones_last = NULL;
-
-		}
+		for(int y = 0; y < total_bins; y++ )
+			bins[y].first = NULL;
 	}
 }
 	simulation_time = read_timer( ) - simulation_time;
