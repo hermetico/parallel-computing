@@ -185,7 +185,6 @@ int main( int argc, char **argv )
 			omp_set_lock(&bin_locks[particle_owner]);
 			particles[i].next = bins[particle_owner].first;
 			bins[particle_owner].first = &particles[i];
-			bins[particle_owner].size++;
 			omp_unset_lock(&bin_locks[particle_owner]);
 		}
 
@@ -205,48 +204,15 @@ int main( int argc, char **argv )
 				while(c_particle)
 				{
 					// same bin
-					//apply_forces_linked_particles(c_particle, c_bin->first, &dmin, &davg, &navg);
-					other = c_bin->first;
-					for(int p = 0; p < c_bin->size; p++) {
-						apply_force(*(c_particle), *(other), &dmin, &davg, &navg);
-						other = other->next;
-					}
-
-					if(c_bin->top) {
-						//apply_forces_linked_particles(c_particle, bins[c_bin->top].first, &dmin, &davg, &navg);
-						other = bins[c_bin->top].first;
-						for(int p = 0; p < bins[c_bin->top].size; p++) {
-							apply_force(*(c_particle), *(other), &dmin, &davg, &navg);
-							other = other->next;
-						}
-					}
-
-					if(c_bin->bottom) {
-						//apply_forces_linked_particles(c_particle, bins[c_bin->bottom].first, &dmin, &davg, &navg);
-						other = bins[c_bin->bottom].first;
-						for(int p = 0; p < bins[c_bin->bottom].size; p++) {
-							apply_force(*(c_particle), *(other), &dmin, &davg, &navg);
-							other = other->next;
-						}
-					}
-					if(c_bin->left) {
-						//apply_forces_linked_particles(c_particle, bins[c_bin->left].first, &dmin, &davg, &navg);
-						other = bins[c_bin->left].first;
-						for(int p = 0; p < bins[c_bin->left].size; p++) {
-							apply_force(*(c_particle), *(other), &dmin, &davg, &navg);
-							other = other->next;
-						}
-					}
-
-					if(c_bin->right) {
-						//apply_forces_linked_particles(c_particle, bins[c_bin->right].first, &dmin, &davg, &navg);
-						other = bins[c_bin->right].first;
-						for(int p = 0; p < bins[c_bin->right].size; p++) {
-							apply_force(*(c_particle), *(other), &dmin, &davg, &navg);
-							other = other->next;
-						}
-					}
-
+					apply_forces_linked_particles(c_particle, c_bin->first, &dmin, &davg, &navg);
+					if(c_bin->top)
+						apply_forces_linked_particles(c_particle, bins[c_bin->top].first, &dmin, &davg, &navg);
+					if(c_bin->bottom)
+						apply_forces_linked_particles(c_particle, bins[c_bin->bottom].first, &dmin, &davg, &navg);
+					if(c_bin->left)
+						apply_forces_linked_particles(c_particle, bins[c_bin->left].first, &dmin, &davg, &navg);
+					if(c_bin->right)
+						apply_forces_linked_particles(c_particle, bins[c_bin->right].first, &dmin, &davg, &navg);
 					if(c_bin->top_left)
 						apply_forces_linked_particles(c_particle, bins[c_bin->top_left].first, &dmin, &davg, &navg);
 					if(c_bin->top_right)
@@ -294,10 +260,8 @@ int main( int argc, char **argv )
 
 		// reset bins
 		#pragma omp for
-		for(int y = 0; y < total_bins; y++ ) {
+		for(int y = 0; y < total_bins; y++ )
 			bins[y].first = NULL;
-			bins[y].size = 0;
-		}
 	}
 }
 	simulation_time = read_timer( ) - simulation_time;
