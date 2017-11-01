@@ -9,7 +9,7 @@ export OMP_NUM_THREADS=1
 ./openmp -p 1 -n 10000 -no -s openmp.out
 ./openmp -p 1 -n 50000 -no -s openmp.out
 
-echo "\n"
+echo
 export OMP_NUM_THREADS=2
 ./openmp -p 1 -n 500 -no -s openmp.out
 ./openmp -p 1 -n 1000 -no -s openmp.out
@@ -18,7 +18,7 @@ export OMP_NUM_THREADS=2
 ./openmp -p 1 -n 10000 -no -s openmp.out
 ./openmp -p 1 -n 50000 -no -s openmp.out
 
-echo "\n"
+echo
 export OMP_NUM_THREADS=4
 ./openmp -p 1 -n 500 -no -s openmp.out
 ./openmp -p 1 -n 1000 -no -s openmp.out
@@ -27,7 +27,7 @@ export OMP_NUM_THREADS=4
 ./openmp -p 1 -n 10000 -no -s openmp.out
 ./openmp -p 1 -n 50000 -no -s openmp.out
 
-echo "\n"
+echo
 export OMP_NUM_THREADS=8
 ./openmp -p 1 -n 500 -no -s openmp.out
 ./openmp -p 1 -n 1000 -no -s openmp.out
