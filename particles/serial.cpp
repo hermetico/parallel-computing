@@ -81,7 +81,7 @@ int main( int argc, char **argv )
 
 
 
-    double bin_size = cutoff * 3;
+    double bin_size = cutoff;
 	int total_bins = ceil((size * size) / (bin_size * bin_size));
     int bins_per_row = ceil(sqrt(total_bins));
 
@@ -89,22 +89,19 @@ int main( int argc, char **argv )
 
     bin_t* bins = (bin_t*) malloc( total_bins * sizeof(bin_t));
 
-    for(int y = 0; y < bins_per_row; y++ )
+    for(int y = 0; y < total_bins; y++ )
 	{
-		for(int x = 0; x < bins_per_row; x++)
-		{
-			bin_t new_bin;
-			new_bin.top = 0;
-			new_bin.bottom = 0;
-			new_bin.left = 0;
-			new_bin.right = 0;
-			new_bin.top_left = 0;
-			new_bin.top_right = 0;
-			new_bin.bottom_left = 0;
-			new_bin.bottom_right = 0;
-			new_bin.first = NULL;
-            bins[y * bins_per_row + x] = new_bin;
-		}
+		bin_t new_bin;
+		new_bin.top = 0;
+		new_bin.bottom = 0;
+		new_bin.left = 0;
+		new_bin.right = 0;
+		new_bin.top_left = 0;
+		new_bin.top_right = 0;
+		new_bin.bottom_left = 0;
+		new_bin.bottom_right = 0;
+		new_bin.first = NULL;
+		bins[y] = new_bin;
 	}
 
 	// link bins
@@ -158,9 +155,7 @@ int main( int argc, char **argv )
 		dmin = 1.0;
 
 
-		// reset bins
-		for(int y = 0; y < total_bins; y++ )
-			bins[y].first = NULL;
+
 
 		for(int i = 0; i < n; i++){
 			int particle_owner = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
@@ -231,6 +226,10 @@ int main( int argc, char **argv )
 		  if( fsave && (step%SAVEFREQ) == 0 )
 			  save( fsave, n, particles );
 		}
+
+		// reset bins
+		for(int y = 0; y < total_bins; y++ )
+			bins[y].first = NULL;
 	}
 	simulation_time = read_timer( ) - simulation_time;
 	
