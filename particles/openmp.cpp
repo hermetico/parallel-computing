@@ -207,13 +207,21 @@ int main( int argc, char **argv )
 					apply_forces_linked_particles(c_particle, c_bin->first, &dmin, &davg, &navg);
 
 					if(c_bin->top)
-						apply_forces_linked_particles(c_particle, bins[c_bin->top].first, &dmin, &davg, &navg);
+						if(bins[c_bin->top].first)
+							apply_forces_linked_particles(c_particle, bins[c_bin->top].first, &dmin, &davg, &navg);
+
 					if(c_bin->bottom)
-						apply_forces_linked_particles(c_particle, bins[c_bin->bottom].first, &dmin, &davg, &navg);
+						if(bins[c_bin->bottom].first)
+							apply_forces_linked_particles(c_particle, bins[c_bin->bottom].first, &dmin, &davg, &navg);
+
 					if(c_bin->left)
-						apply_forces_linked_particles(c_particle, bins[c_bin->left].first, &dmin, &davg, &navg);
+						if(bins[c_bin->left].first)
+							apply_forces_linked_particles(c_particle, bins[c_bin->left].first, &dmin, &davg, &navg);
+
 					if(c_bin->right)
-						apply_forces_linked_particles(c_particle, bins[c_bin->right].first, &dmin, &davg, &navg);
+						if(bins[c_bin->right].first)
+							apply_forces_linked_particles(c_particle, bins[c_bin->right].first, &dmin, &davg, &navg);
+
 					if(c_bin->top_left)
 						apply_forces_linked_particles(c_particle, bins[c_bin->top_left].first, &dmin, &davg, &navg);
 					if(c_bin->top_right)
