@@ -79,7 +79,7 @@ int main( int argc, char **argv )
 	set_size( n );
 	init_particles( n, particles );
 
-	double bin_size = cutoff;
+	double bin_size = cutoff * 1.5;
 	int total_bins = ceil((size * size) / (bin_size * bin_size));
 	int bins_per_row = ceil(sqrt(total_bins));
 
@@ -200,7 +200,6 @@ int main( int argc, char **argv )
 				bin_t* c_bin = &bins[y * bins_per_row + x];
 
 				particle_t* c_particle = c_bin->first;
-				particle_t* other;
 				while(c_particle)
 				{
 					// same bin
