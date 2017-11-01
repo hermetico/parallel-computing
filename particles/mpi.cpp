@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "common.h"
-
+#include <stdio.h>
 //
 //  benchmarking program
 //
@@ -39,6 +39,7 @@ int main( int argc, char **argv )
 	MPI_Init( &argc, &argv );
 	MPI_Comm_size( MPI_COMM_WORLD, &n_proc );
 	MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+	std::cout << "proces " << rank << " of "<< n_proc << " processes" << std::endl;
 	
 	//
 	//  allocate generic resources
