@@ -36,5 +36,5 @@ export OMP_NUM_THREADS=8
 ./openmp -p 1 -n 10000 -no -s openmp.out
 ./openmp -p 1 -n 50000 -no -s openmp.out
 
-#./autograder -v openmp -s openmp.out
+./autograder -v openmp -s openmp.out
 
