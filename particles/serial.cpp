@@ -5,7 +5,6 @@
 #include <iostream>
 #include "common.h"
 
-#include <vector>
 
 using namespace std;
 
@@ -17,63 +16,30 @@ extern double size;
 typedef struct bin_t bin_t;
 struct bin_t
 {
-	// bin pointers
-	bin_t* top = NULL;
-	bin_t* bottom = NULL;
-	bin_t* left = NULL;
-	bin_t* right = NULL;
-	bin_t* top_left = NULL;
-	bin_t* top_right = NULL;
-	bin_t* bottom_left = NULL;
-	bin_t* bottom_right = NULL;
+	// neighbor bins
+	int top;
+	int bottom;
+	int left;
+	int right;
+	int top_left;
+	int top_right;
+	int bottom_left;
+	int bottom_right;
 
 	// particles pointers
-	particle_t* first = NULL;
-	particle_t* last = NULL;
-	particle_t* new_ones_first = NULL;
-	particle_t* new_ones_last = NULL;
+	particle_t* first;
 };
-
-void show_bins(bin_t* bins, int bins_per_row){
-	cout << endl;
-	cout << endl;
-	for(int y = 0; y < bins_per_row; y++ )
-	{
-		for(int x = 0; x < bins_per_row; x++)
-		{
-            //TODO change this
-			int num_particles = 0; //bins[y * bins_per_row + x].size;
-			cout << num_particles << ",   " ;
-		}
-		cout << endl;
-	}
-}
 
 
 void apply_forces_linked_particles(particle_t* a_particle, particle_t* b_particle, double* dmin, double* davg,  int* navg)
 {
 	while(b_particle)
 	{
-
 		apply_force(*(a_particle), *(b_particle), dmin, davg, navg);
 		b_particle = b_particle->next;
 	}
 }
 
-void notify_bin(bin_t* bin, particle_t* particle)
-{
-    //adds the particle to the new ones
-
-	particle->next = NULL;
-	if(!bin->new_ones_first){
-		bin->new_ones_first = particle;
-		bin->new_ones_last = particle;
-	}else{
-		particle_t* tmp = bin->new_ones_last;
-		bin->new_ones_last = particle;
-		tmp->next = bin->new_ones_last;
-	}
-}
 
 int get_bin_id(int bins_per_row, double bin_size,  double x, double y){
 	int binx = (int) ceil(x / bin_size) - 1;
@@ -128,6 +94,15 @@ int main( int argc, char **argv )
 		for(int x = 0; x < bins_per_row; x++)
 		{
 			bin_t new_bin;
+			new_bin.top = 0;
+			new_bin.bottom = 0;
+			new_bin.left = 0;
+			new_bin.right = 0;
+			new_bin.top_left = 0;
+			new_bin.top_right = 0;
+			new_bin.bottom_left = 0;
+			new_bin.bottom_right = 0;
+			new_bin.first = NULL;
             bins[y * bins_per_row + x] = new_bin;
 		}
 	}
@@ -140,31 +115,31 @@ int main( int argc, char **argv )
 			bin_t* c_bin = &bins[y * bins_per_row + x];
 			if( y > 0)
 			{
-				c_bin->bottom = &bins[(y-1) * bins_per_row + x];
+				c_bin->bottom = (y-1) * bins_per_row + x;
 
 				if (x > 0)
-					c_bin->bottom_left = &bins[(y - 1) * bins_per_row + (x - 1)];
+					c_bin->bottom_left = (y - 1) * bins_per_row + (x - 1);
 
 				if (x < bins_per_row - 1)
-					c_bin->bottom_right = &bins[(y - 1) * bins_per_row + (x + 1)];
+					c_bin->bottom_right = (y - 1) * bins_per_row + (x + 1);
 			}
 
 			if( y < bins_per_row - 1)
 			{
-				c_bin->top = &bins[(y+1) * bins_per_row + x];
+				c_bin->top = (y+1) * bins_per_row + x;
 
 				if (x > 0)
-					c_bin->top_left = &bins[(y + 1) * bins_per_row + (x - 1)];
+					c_bin->top_left = (y + 1) * bins_per_row + (x - 1);
 
 				if (x < bins_per_row - 1)
-					c_bin->top_right = &bins[(y + 1) * bins_per_row + (x + 1)];
+					c_bin->top_right = (y + 1) * bins_per_row + (x + 1);
 			}
 
 			if (x > 0)
-				c_bin->left = &bins[y * bins_per_row + (x - 1)];
+				c_bin->left = y * bins_per_row + (x - 1);
 
 			if (x < bins_per_row - 1)
-				c_bin->right = &bins[y * bins_per_row + (x + 1)];
+				c_bin->right = y * bins_per_row + (x + 1);
 		}
 	}
 
@@ -174,24 +149,7 @@ int main( int argc, char **argv )
 	double simulation_time = read_timer( );
 
     // asign particles initially
-    for(int i = 0; i < n; i++){
-        //TODO check edge case particle position 0.0
 
-
-        int particle_owner = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
-
-        particles[i].next = NULL;
-        bin_t* c_bin = &bins[particle_owner];
-
-        if(!c_bin->first){
-            c_bin->first = &particles[i];
-            c_bin->last = &particles[i];
-        }else{
-            particle_t* tmp = c_bin->last;
-            c_bin->last = &particles[i];
-            tmp->next = c_bin->last;
-        }
-    }
 
 	for( int step = 0; step < NSTEPS; step++ )
 	{
@@ -200,6 +158,16 @@ int main( int argc, char **argv )
 		dmin = 1.0;
 
 
+		// reset bins
+		for(int y = 0; y < total_bins; y++ )
+			bins[y].first = NULL;
+
+		for(int i = 0; i < n; i++){
+			int particle_owner = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
+			particles[i].next = bins[particle_owner].first;
+			bins[particle_owner].first = &particles[i];
+		}
+		
 		// compute forces
 		for(int y = 0; y < bins_per_row; y++ )
 		{
@@ -218,21 +186,21 @@ int main( int argc, char **argv )
 					apply_forces_linked_particles(c_particle, c_bin->first, &dmin, &davg, &navg);
 
 					if(c_bin->top)
-						apply_forces_linked_particles(c_particle, c_bin->top->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->top].first, &dmin, &davg, &navg);
 					if(c_bin->bottom)
-						apply_forces_linked_particles(c_particle, c_bin->bottom->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->bottom].first, &dmin, &davg, &navg);
 					if(c_bin->left)
-						apply_forces_linked_particles(c_particle, c_bin->left->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->left].first, &dmin, &davg, &navg);
 					if(c_bin->right)
-						apply_forces_linked_particles(c_particle, c_bin->right->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->right].first, &dmin, &davg, &navg);
 					if(c_bin->top_left)
-						apply_forces_linked_particles(c_particle, c_bin->top_left->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->top_left].first, &dmin, &davg, &navg);
 					if(c_bin->top_right)
-						apply_forces_linked_particles(c_particle, c_bin->top_right->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->top_right].first, &dmin, &davg, &navg);
 					if(c_bin->bottom_left)
-						apply_forces_linked_particles(c_particle, c_bin->bottom_left->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->bottom_left].first, &dmin, &davg, &navg);
 					if(c_bin->bottom_right)
-						apply_forces_linked_particles(c_particle, c_bin->bottom_right->first, &dmin, &davg, &navg);
+						apply_forces_linked_particles(c_particle, bins[c_bin->bottom_right].first, &dmin, &davg, &navg);
 
 					c_particle = c_particle->next;
 				}
@@ -265,81 +233,6 @@ int main( int argc, char **argv )
 		  if( fsave && (step%SAVEFREQ) == 0 )
 			  save( fsave, n, particles );
 		}
-
-
-
-
-        // check for particles that are now outside the bin
-        for( int i  = 0; i < total_bins; i++)
-        {
-            int owner;
-
-            //FIRST particle
-            // check for the first particle
-            particle_t* first = bins[i].first;
-            while(first == bins[i].first && first){
-                owner = get_bin_id(bins_per_row, bin_size, first->x, first->y);
-                if(owner != i){
-                    //unlink first particle
-                    bins[i].first = first->next;
-                    notify_bin(&bins[owner], first);
-                }
-                // check first again
-                first = first->next;
-            }
-
-            // MIDDLE particles and last
-            // now we can look ahead one particle
-            particle_t* prev = bins[i].first;
-            particle_t* current;
-            while(prev){
-                current = prev->next;
-                if(!current) break;
-                owner = get_bin_id(bins_per_row, bin_size, current->x, current->y);
-
-                //checks if a particle corresponds to a new bin
-                if(i != owner)
-                {
-                    // unlink the current particle
-                    prev->next = current->next;
-                    notify_bin(&bins[owner], current);
-                }
-
-                if(!prev->next)// is it the last one now?
-                {
-                    bins[i].last = prev;
-                    prev = NULL;
-                }
-                else
-                {
-                    // update the previous one
-                    prev = prev->next;
-                }
-            }
-
-            // if current == NULL, prev is the last one
-            bins[i].last = prev;
-
-        }
-		// marge particles list
-		for( int i  = 0; i < total_bins; i++)
-		{
-			if(bins[i].new_ones_first && bins[i].last){
-				particle_t* tmp = bins[i].last;
-				tmp->next = bins[i].new_ones_first;
-				bins[i].last = bins[i].new_ones_last;
-				bins[i].new_ones_first = NULL;
-				bins[i].new_ones_last = NULL;
-			}else if(bins[i].new_ones_first)
-			{
-				bins[i].first = bins[i].new_ones_first;
-				bins[i].last = bins[i].new_ones_last;
-				bins[i].new_ones_first = NULL;
-				bins[i].new_ones_last = NULL;
-			}
-
-		}
-
 	}
 	simulation_time = read_timer( ) - simulation_time;
 	
