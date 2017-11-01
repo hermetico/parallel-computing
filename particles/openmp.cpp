@@ -260,7 +260,7 @@ int main( int argc, char **argv )
 		}
 
 		// reset bins
-		#pragma omp for nowait
+		#pragma omp for
 		for(int y = 0; y < total_bins; y++ )
 			bins[y].first = NULL;
 	}
