@@ -79,7 +79,7 @@ int main( int argc, char **argv )
 	set_size( n );
 	init_particles( n, particles );
 
-	double bin_size = cutoff * 1.5;
+	double bin_size = cutoff * 1.7;
 	int total_bins = ceil((size * size) / (bin_size * bin_size));
 	int bins_per_row = ceil(sqrt(total_bins));
 
