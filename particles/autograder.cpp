@@ -64,8 +64,9 @@ int main( int argc, char **argv )
 
     if (strcmp(autoname,"pthreads")==0 || strcmp(autoname,"openmp")==0 || strcmp(autoname,"mpi")==0){
       if(fread){
-        fscanf (fread,"%d %lf",&n[count],&t[count]);
-        count++; p[0]=1;
+        //fscanf (fread,"%d %lf",&n[count],&t[count]);
+        //count++;
+        p[0]=1;
         while( fscanf (fread,"%d %d %lf",&n[count],&p[count],&t[count]) != EOF )
           count++;
       }
