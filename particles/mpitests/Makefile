@@ -1,6 +1,6 @@
 CC = g++
 MPICC = mpic++
-TARGETS = hello_world send_receive
+TARGETS = hello_world send_receive ring
 
 all: ${TARGETS}
 
@@ -9,6 +9,9 @@ hello_world: mpihello.cpp
 
 send_receive: mpisendrecv.cpp
 	$(MPICC) -o $@ mpisendrecv.cpp
+
+ring:  mpiring.cpp
+	$(MPICC) -o $@ mpiring.cpp
 
 clean:
 	rm -f ${TARGETS} *.o
