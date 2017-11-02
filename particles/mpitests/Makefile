@@ -1,6 +1,6 @@
 CC = g++
 MPICC = mpic++
-TARGETS = hello_world send_receive ring
+TARGETS = hello_world send_receive ring checkstatus
 
 all: ${TARGETS}
 
@@ -12,6 +12,10 @@ send_receive: mpisendrecv.cpp
 
 ring:  mpiring.cpp
 	$(MPICC) -o $@ mpiring.cpp
+
+checkstatus: mpicheckstatus.cpp
+	$(MPICC) -o $@ mpicheckstatus.cpp
+
 
 clean:
 	rm -f ${TARGETS} *.o
