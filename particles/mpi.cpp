@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "common.h"
-#include <stdio.h>
+#include <iostream>
 //
 //  benchmarking program
 //
