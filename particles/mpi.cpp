@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "common.h"
-
+#include <iostream>
 //
 //  benchmarking program
 //
@@ -39,6 +39,7 @@ int main( int argc, char **argv )
 	MPI_Init( &argc, &argv );
 	MPI_Comm_size( MPI_COMM_WORLD, &n_proc );
 	MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+	std::cout << "proces " << rank << " of "<< n_proc << " processes" << std::endl;
 	
 	//
 	//  allocate generic resources
@@ -49,8 +50,11 @@ int main( int argc, char **argv )
 
 	particle_t *particles = (particle_t*) malloc( n * sizeof(particle_t) );
 	
-	MPI_Datatype PARTICLE;
-	MPI_Type_contiguous( 6, MPI_DOUBLE, &PARTICLE );
+    /* Creates a datatype for the particle, it contains 7 double
+     * which are the values and the pointer to the next one
+     */
+    MPI_Datatype PARTICLE;
+	MPI_Type_contiguous( 7, MPI_DOUBLE, &PARTICLE ); // as many doubles as the structure has
 	MPI_Type_commit( &PARTICLE );
 	
 	//
