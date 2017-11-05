@@ -42,8 +42,8 @@ void apply_forces_linked_particles(particle_t* a_particle, particle_t* b_particl
 
 
 int get_bin_id(int bins_per_row, double bin_size,  double x, double y){
-	int binx = (int) ceil(x / bin_size) - 1;
-	int biny = (int) ceil(y / bin_size) - 1;
+	int binx = (int) std::max(ceil(x / bin_size) - 1, 0.0);
+	int biny = (int) std::max(ceil(y / bin_size) - 1, 0.0);
 
 	return  bins_per_row * biny + binx;
 }
