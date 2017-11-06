@@ -41,8 +41,8 @@ void apply_forces_linked_particles(particle_t* a_particle, particle_t* b_particl
 
 
 int get_bin_id(int bins_per_row, double bin_size,  double x, double y){
-	int binx = max((int) ceil(x / bin_size) - 1, 0);
-	int biny = max((int) ceil(y / bin_size) - 1, 0);
+	int binx = floor(x / bin_size);
+	int biny = floor(y / bin_size);
 
 	return  bins_per_row * biny + binx;
 }
@@ -81,12 +81,10 @@ int main( int argc, char **argv )
 
 
     double bin_size = cutoff * 1.7;
-	int total_bins = ceil((size * size) / (bin_size * bin_size));
-    int bins_per_row = ceil(sqrt(total_bins));
+	int bins_per_row = ceil(size / bin_size);
+	int total_bins = bins_per_row * bins_per_row;
 
-    total_bins = bins_per_row * bins_per_row;
-
-    bin_t* bins = (bin_t*) malloc( total_bins * sizeof(bin_t));
+	bin_t* bins = (bin_t*) malloc( total_bins * sizeof(bin_t));
 
     for(int y = 0; y < total_bins; y++ )
 	{
