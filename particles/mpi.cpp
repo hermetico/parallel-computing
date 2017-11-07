@@ -27,21 +27,29 @@ struct bin_t
 	int bottom_right;
 	int global_id;
 
-	// particles pointers
-	particle_t* first;
 };
 
 
 int get_bin_id(int bins_per_row, double bin_size,  double x, double y){
-	int binx = max((int) ceil(x / bin_size) - 1, 0);
-	int biny = max((int) ceil(y / bin_size) - 1, 0);
+	int binx = floor(x / bin_size);
+	int biny = floor(y / bin_size);
 
 	return  bins_per_row * biny + binx;
 }
 
-int get_proc_id(int total_local_bins, int bin_id){
-	return bin_id / total_local_bins;
 
+int get_proc_id(int bin_id, int* bins_offsets, int num_procs){
+	for( int i = 0; i < num_procs + 1; i++ ) {
+		//TODO check >= >
+		if (bin_id >= bins_offsets[i]) {
+			return i;
+		}
+	}
+}
+
+void reset_bins_particles(particle_t** bins_particles, int local_nbins){
+	for(int i = 0; i < local_nbins; i++)
+		bins_particles[i] = 0;
 }
 
 void link_bins(int bins_per_row, bin_t* bins){
@@ -116,7 +124,7 @@ int main( int argc, char **argv )
 	MPI_Init( &argc, &argv );
 	MPI_Comm_size( MPI_COMM_WORLD, &n_proc );
 	MPI_Comm_rank( MPI_COMM_WORLD, &rank );
-	std::cout << "proces " << rank << " of "<< n_proc << " processes" << std::endl;
+	//std::cout << "proces " << rank << " of "<< n_proc << " processes" << std::endl;
 	
 	//
 	//  allocate generic resources
@@ -134,6 +142,10 @@ int main( int argc, char **argv )
 	MPI_Type_contiguous( 7, MPI_DOUBLE, &PARTICLE ); // as many doubles as the structure has
 	MPI_Type_commit( &PARTICLE );
 
+	MPI_Datatype BIN;
+	MPI_Type_contiguous( 9, MPI_INT, &BIN );
+	MPI_Type_commit( &BIN );
+
 
 	//
 	//  set up the data partitioning across processors
@@ -142,11 +154,11 @@ int main( int argc, char **argv )
 	int *partition_offsets = (int*) malloc( (n_proc+1) * sizeof(int) );
 	for( int i = 0; i < n_proc+1; i++ )
 		partition_offsets[i] = min( i * particle_per_proc, n );
-	
+
 	int *partition_sizes = (int*) malloc( n_proc * sizeof(int) );
 	for( int i = 0; i < n_proc; i++ )
 		partition_sizes[i] = partition_offsets[i+1] - partition_offsets[i];
-	
+
 	//
 	//  allocate storage for local partition
 	//
@@ -161,75 +173,95 @@ int main( int argc, char **argv )
 		init_particles( n, particles );
 
 	//
-	// assigning bins to processes
+	// setup the bin partitioning across processors
 	//
-	int total_bins, bins_per_row, total_local_bins, local_bins_per_row;
+	int total_bins, bins_per_row, bins_per_proc;
 	double bin_size = cutoff;
-	total_bins = ceil((size * size) / (bin_size * bin_size));
-	bins_per_row = ceil(sqrt(total_bins));
+	bins_per_row = ceil(size / bin_size);
 	total_bins = bins_per_row * bins_per_row;
 
-	total_local_bins = ceil(total_bins / n_proc);
-	local_bins_per_row = ceil(sqrt(total_local_bins));
-	total_local_bins = local_bins_per_row * local_bins_per_row;
+
+	bins_per_proc = (total_bins +  n_proc - 1) / n_proc;
+	int* bins_offsets = (int*) malloc( (n_proc+1) * sizeof(int) );
+	for( int i = 0; i < n_proc + 1; i++ )
+		bins_offsets[i] = min(i * bins_per_proc, total_bins);
+
+	int* bins_per_proc_sizes = (int*) malloc( n_proc * sizeof(int) );
+	for( int i = 0; i < n_proc; i++ )
+		bins_per_proc_sizes[i] = bins_offsets[i+1] - bins_offsets[i];
+
 
 	bin_t* local_bins;
-	local_bins = (bin_t*) malloc( total_local_bins * sizeof(bin_t));
+	bin_t* global_bins;
+	// the real local number of bins
+	int local_nbins = bins_per_proc_sizes[rank];
+	local_bins = (bin_t*) malloc( local_nbins * sizeof(bin_t));
+	// the first particle to be pointing from the bin
+	particle_t** bins_particles = static_cast<particle_t **>(malloc(local_nbins * sizeof(particle_t*)));
+	reset_bins_particles(bins_particles, local_nbins);
 
-	for(int y = 0; y < total_local_bins; y++ )
+	if(rank == 0) // global bins setup from process 0
 	{
-		bin_t new_bin;
-		new_bin.top = -1;
-		new_bin.bottom = -1;
-		new_bin.left = -1;
-		new_bin.right = -1;
-		new_bin.top_left = -1;
-		new_bin.top_right = -1;
-		new_bin.bottom_left = -1;
-		new_bin.bottom_right = -1;
-		new_bin.first = NULL;
-		new_bin.global_id = total_local_bins * rank + y;
-		local_bins[y] = new_bin;
+		global_bins = (bin_t*) malloc( total_bins * sizeof(bin_t));
+		for (int i = 0; i < total_bins; i++) {
+			bin_t new_bin;
+			new_bin.top = -1;
+			new_bin.bottom = -1;
+			new_bin.left = -1;
+			new_bin.right = -1;
+			new_bin.top_left = -1;
+			new_bin.top_right = -1;
+			new_bin.bottom_left = -1;
+			new_bin.bottom_right = -1;
+			new_bin.global_id = i;
+			global_bins[i] = new_bin;
+		}
+		link_bins(bins_per_row, global_bins);
 	}
-	link_bins(local_bins_per_row, local_bins);
 
-	/* DEBUG INFO
+	MPI_Scatterv(global_bins, bins_per_proc_sizes, bins_offsets, BIN, local_bins, local_nbins, BIN, 0, MPI_COMM_WORLD);
+
+
+	// DEBUG INFO
+		MPI_Barrier(MPI_COMM_WORLD);
 	if (rank == 0)
 		std::cout << "total bins " << total_bins << std::endl;
-
-	//std::cout << "proces " << rank << " size " << size << std::endl;
-	std::cout << "proces " << rank << " bins per row " << local_bins_per_row << std::endl;
-	std::cout << "proces " << rank << " bins assigned " << total_local_bins << std::endl;
-
-
-
-	MPI_Barrier(MPI_COMM_WORLD);
+	std::cout << "proces " << rank << " bins assigned " << local_nbins << std::endl;
 	std::cout << "proces " << rank << ":"<< std::endl;
-	for( int i = 0; i < total_local_bins; i++){
+	for( int i = 0; i < local_nbins; i++){
 		std::cout << "bin with id " << local_bins[i].global_id << std::endl;
 	}
 
 
-	std::cout << "END " << std::endl;
+	MPI_Scatterv( particles, partition_sizes, partition_offsets, PARTICLE, local, nlocal, PARTICLE, 0, MPI_COMM_WORLD );
+	/*// DEBUG INFO
+	MPI_Barrier(MPI_COMM_WORLD);
+	std::cout << "proces " << rank << " particles assigned " << nlocal << std::endl;
+	MPI_Barrier(MPI_COMM_WORLD);
 	*/
 
-	//HERE
-	// assigning particles to processes
-	if (rank == 0) {
-		std::vector<std::vector<particle_t>> all_particles;
+	std::cout << "bins per proc" << bins_per_proc<< std::endl;
+	MPI_Barrier(MPI_COMM_WORLD);
+	int matches=0, non_matches =0;
+	for(int i = 0; i < nlocal; i++){
+		int global_bin_id = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
+		int particle_proc_owner = get_proc_id(global_bin_id, bins_offsets, n_proc);
+		int local_bin_position = global_bin_id - (bins_per_proc * (particle_proc_owner));
+		std::cout << "proces " << rank << " particle owner  " << particle_proc_owner << std::endl;
+		std::cout << "proces " << rank << " particle bin  " << global_bin_id << std::endl;
+		std::cout << "proces " << rank << " local bin  " << local_bin_position << std::endl;
+		if( global_bin_id == local_bins[local_bin_position].global_id)
+			matches++;
+		else
+			non_matches++;
 
-		for(int i = 0; i < n_proc; i++)
-			all_particles.push_back( std::vector<particle_t>());
-
-		for (int i = 0; i < n; i++) {
-			int bin_id = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
-			int proc_id = get_proc_id(total_local_bins, bin_id);
-			all_particles[proc_id].push_back(particles[i]);
-		}
+		//bin_t local_owner_bin = local_bins[]
+		//particles[i].next = bins[particle_owner].first;
+		//bins[particle_owner].first = &particles[i];
 	}
-	//MPI_Scatterv( particles, partition_sizes, partition_offsets, PARTICLE, local, nlocal, PARTICLE, 0, MPI_COMM_WORLD );
-
-
+	MPI_Barrier(MPI_COMM_WORLD);
+	std::cout << "proces " << rank << " matches  " << matches << std::endl;
+	std::cout << "proces " << rank << " non matches  " << non_matches << std::endl;
 	//
 	//  simulate a number of time steps
 	//
@@ -239,10 +271,32 @@ int main( int argc, char **argv )
 		navg = 0;
 		dmin = 1.0;
 		davg = 0.0;
-		// 
+
+		//
+		// Assign particles to bins
+		//
+		/*int matches=0, non_matches =0;
+		for(int i = 0; i < nlocal; i++){
+			int global_bin_id = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
+			int particle_proc_owner = get_proc_id(global_bin_id, bins_offsets, n_proc);
+			int local_bin_position = global_bin_id - (bins_per_proc * particle_proc_owner);
+			if( global_bin_id == local_bins[local_bin_position].global_id)
+				matches++;
+			else
+				non_matches++;
+
+			//bin_t local_owner_bin = local_bins[]
+			//particles[i].next = bins[particle_owner].first;
+			//bins[particle_owner].first = &particles[i];
+		}
+		std::cout << "proces " << rank << " matches  " << matches << std::endl;
+		std::cout << "proces " << rank << " non matches  " << non_matches << std::endl;
+		 */
+		//
 		//  collect all global data locally (not good idea to do)
 		//
-		MPI_Allgatherv( local, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
+		///*UNCOMMENT
+		//MPI_Allgatherv( local, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
 		
 		//
 		//  save current step if necessary (slightly different semantics than in other codes)
@@ -321,8 +375,8 @@ int main( int argc, char **argv )
 	if ( fsum )
 		fclose( fsum );
 	free(local_bins);
-	free( partition_offsets );
-	free( partition_sizes );
+	free( bins_offsets );
+	free( bins_per_proc_sizes );
 	free( local );
 	free( particles );
 	if( fsave )
