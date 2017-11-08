@@ -15,7 +15,10 @@
 #define BINS_LEVEL 6
 #define PARTICLES_LEVEL 5
 #define MOVING_PARTICLES_LEVEL 4
-#define VERBOSE_LEVEL 4
+#define UPDATING_PARTICLES_LEVEL 3
+#define UPDATING_GREY_PARTICLES_LEVEL 2
+#define CHECKING_INTERACTION_LEVEL 1
+#define VERBOSE_LEVEL 1
 
 // the size of the grid
 extern double size;
@@ -97,7 +100,7 @@ int main( int argc, char **argv )
 	// so far, only slicing rows, would be nice to slice in a grid manner
 	// everyone should know the general layout of the problem
 	int total_bins, bins_per_row, bins_per_proc;
-	double bin_size = cutoff * 1.7; 
+	double bin_size = cutoff * 1.7;
 	bins_per_row = ceil(size / bin_size);
 	total_bins = bins_per_row * bins_per_row;
 
@@ -190,7 +193,7 @@ int main( int argc, char **argv )
 	//
 
 	double simulation_time = read_timer( );
-	for( int step = 0; step < 0/*NSTEPS*/; step++ )
+	for( int step = 0; step <NSTEPS; step++ )
 	{
 		navg = 0;
 		dmin = 1.0;
@@ -394,13 +397,50 @@ int main( int argc, char **argv )
 
 
 		// reset placeholders
-		reset_particles_placeholders(local_bins_particles_ph, local_nbins);
+		//reset_particles_placeholders(local_bins_particles_ph, local_nbins);
 
 		// TODO update particles bins
-		// TODO send particles outside boundaries
+		//show_placeholders(local_bins_particles_ph,local_nbins, bins_per_row);
+		//MPI_Barrier(MPI_COMM_WORLD);
+		//std::cout << "Updating local particles\n";
+		particle_t* old_local_particles = local_particles;
+		int updated_nlocal = 0;
+		local_particles = send_and_receive_local_particles(old_local_particles, &updated_nlocal, nlocal, n_proc, rank,
+									PARTICLE, bins_per_row, bin_size, bins_per_proc);
+
+		free(old_local_particles);
+
+		//local_particles = updated_local_particles;
+		nlocal = updated_nlocal;
+		reset_particles_placeholders(local_bins_particles_ph, local_nbins);
+		assign_local_particles_to_ph(local_particles, local_bins_particles_ph, nlocal, bins_per_proc);
+		//MPI_Barrier(MPI_COMM_WORLD);
+
+		//show_placeholders(local_bins_particles_ph,local_nbins, bins_per_row);
 		// TODO send particles grey area
+		//MPI_Barrier(MPI_COMM_WORLD);
+		//std::cout << "sending grey particles\n";
+		//
+		// Distribute grey area particles
+		//
+
+		particle_t* old_local_grey_particles = local_grey_particles;
+		int grey_nlocal = 0;
+		local_grey_particles = send_and_receive_grey_area_particles( &grey_nlocal, n_proc, nlocal, local_particles, bins_per_row,
+		                                                             local_nbins, rank, PARTICLE, proc_bins_from, proc_bins_until);
+		free(old_local_grey_particles);
+
+		//MPI_Barrier(MPI_COMM_WORLD);
+		//std::cout << "grey particles sent\n";
+		// assign local grey particles to grey bins
+		// we can define the place holders for
+
+		reset_particles_placeholders(local_grey_bins_particles_ph, local_ngrey_bins);
+		assign_local_grey_particles_to_ph(local_grey_particles, local_grey_bins_particles_ph, grey_nlocal, bins_per_row,
+		                                  rank, n_proc,proc_bins_from, proc_bins_until);
+
 	}
-	/*
+
 	simulation_time = read_timer( ) - simulation_time;
   
 	if (rank == 0) {  
@@ -429,7 +469,7 @@ int main( int argc, char **argv )
 		fprintf(fsum,"%d %d %g\n",n,n_proc,simulation_time);
 
 	}
-	 */
+
 
 	//
 	//  release resources
