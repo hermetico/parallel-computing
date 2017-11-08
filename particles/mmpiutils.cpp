@@ -9,7 +9,7 @@
 #define BINS_LEVEL 6
 #define PARTICLES_LEVEL 5
 #define MOVING_PARTICLES_LEVEL 4
-#define VERBOSE_LEVEL 4
+#define VERBOSE_LEVEL 6
 
 
 typedef struct bin_t bin_t;
@@ -62,6 +62,15 @@ int get_proc_from_bin(int bin_id, int bins_per_proc){
 
 int get_local_bin_from_global_bin(int bin_id, int bins_per_proc){
 	return bin_id % bins_per_proc;
+}
+
+int get_local_grey_bin_id_from_global(int global_id, int proc_id, int rank, int n_proc, int bins_per_proc, int bins_per_row,int* proc_bins_from, int* proc_bins_until ){
+	int grey_bin_id = global_id % bins_per_row;
+	if( rank < proc_id) {
+		grey_bin_id += bins_per_row;
+		std::cout << " (right half) ";
+	}
+	return grey_bin_id;
 }
 
 void reset_particles_placeholders(particle_ph* bins_particles, int local_nbins){
@@ -172,9 +181,34 @@ void assign_local_particles_to_ph(particle_t* particles, particle_ph* local_plac
 	}
 }
 
+void assign_local_grey_particles_to_ph(particle_t* particles, particle_ph* placeholders, int grey_nlocal,
+     int bins_per_row, int rank, int n_proc, int* proc_bins_from, int* proc_bins_until )
+{
+	std::cout << "Process " << rank << " with " << grey_nlocal << std::endl;
+	for(int i = 0; i < grey_nlocal; i++) {
+		std::cout << "Global id " << particles[i].global_bin_id;
+		//int grey_bin_id = get_local_grey_bin_id_from_global(particles[i].global_bin_id,particles[i].proc_id, rank, n_proc, bins_per_proc, bins_per_row);
+		int global_id = particles[i].global_bin_id;
+		int grey_bin_id = global_id % bins_per_row;
+		if( rank < n_proc - 1 && rank > 0) // comes from above?
+		{
+			if( global_id >= proc_bins_from[rank + 1]){
+				grey_bin_id += bins_per_row;
+				std::cout << " (right half) ";
+			}
+		}
+		std::cout << " appending it at grey local bin with id " << grey_bin_id << std::endl;
+		particles[i].next_grey = placeholders[grey_bin_id].first;
+		placeholders[grey_bin_id].first = &particles[i];
+		placeholders[grey_bin_id].size++;
+
+	}
+}
+
 // populates buff_length
 particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, int nlocal,
-	particle_t* local_particles, int bins_per_row, int local_nbins, int rank, MPI_Datatype PARTICLE){
+	particle_t* local_particles, int bins_per_row, int local_nbins, int rank, MPI_Datatype PARTICLE, int *proc_bins_from,
+	int *proc_bins_until){
 
 
 	particle_ph* grey_send_ph;
@@ -197,28 +231,33 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 	// collect info about data to be sent
 	for(int i = 0; i < nlocal; i++){
 		int bin_id = local_particles[i].global_bin_id;
-
-		// needs to go up?
-		if(bin_id + bins_per_row >= local_nbins * (rank + 1) && rank < n_proc - 1)
-		{
-			int recv_id = rank + 1;
-			local_particles[i].next_grey = grey_send_ph[recv_id].first;
-			grey_send_ph[recv_id].first = &local_particles[i];
-			grey_send_ph[recv_id].size++;
-			send_counts[recv_id]++;
-			total_send_counts++;
-			//std::cout << "Particle at process " << rank << " sending it to " <<recv_id <<std::endl;
+		if(rank < n_proc - 1) {
+			// needs to go up?
+			if (bin_id  + bins_per_row >= proc_bins_from[rank + 1] && bin_id + bins_per_row <= proc_bins_until[rank + 1])
+				//if(bin_id + bins_per_row >= local_nbins * (rank + 1) && rank < n_proc - 1)
+			{
+				int recv_id = rank + 1;
+				local_particles[i].next_grey = grey_send_ph[recv_id].first;
+				grey_send_ph[recv_id].first = &local_particles[i];
+				grey_send_ph[recv_id].size++;
+				send_counts[recv_id]++;
+				total_send_counts++;
+				std::cout << "Particle at process " << rank << " in bin " << bin_id << " sending it to " <<recv_id <<std::endl;
+			}
 		}
-		// needs to go down?
-		if(bin_id - bins_per_row < local_nbins * (rank + 1) && rank != 0)
-		{
-			int recv_id = rank - 1;
-			local_particles[i].next_grey = grey_send_ph[recv_id].first;
-			grey_send_ph[recv_id].first = &local_particles[i];
-			grey_send_ph[recv_id].size++;
-			send_counts[recv_id]++;
-			total_send_counts++;
-			//std::cout << "Particle at process " << rank << " sending it to " <<recv_id <<std::endl;
+		if( rank > 0 ) {
+			// needs to go down?
+			if (bin_id - bins_per_row>= proc_bins_from[rank - 1] && bin_id - bins_per_row<= proc_bins_until[rank - 1])
+				//if(bin_id - bins_per_row < local_nbins * (rank + 1) && rank != 0)
+			{
+				int recv_id = rank - 1;
+				local_particles[i].next_grey = grey_send_ph[recv_id].first;
+				grey_send_ph[recv_id].first = &local_particles[i];
+				grey_send_ph[recv_id].size++;
+				send_counts[recv_id]++;
+				total_send_counts++;
+				std::cout << "Particle at process " << rank << " in bin " << bin_id << " sending it to " << recv_id <<std::endl;
+			}
 		}
 	}
 
@@ -232,6 +271,8 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 		for (int j = 0; j < grey_send_ph[i].size; j++) {
 
 			pt_copy(&grey_send_buff[pos], c_p);
+			grey_send_buff[pos].next_grey = NULL;
+			grey_send_buff[pos].next = NULL;
 			c_p = c_p->next_grey;
 			pos++;
 		}
@@ -313,10 +354,9 @@ particle_t* receive_particles(int* buff_length, int n_proc, particle_t* particle
 
 		if (VERBOSE_LEVEL > PARTICLES_LEVEL) {
 			show_placeholders(total_bins_particles_ph, total_bins, bins_per_row);
-			MPI_Barrier(MPI_COMM_WORLD);
-			for (int i = 0; i < total_bins; i++) {
-				std::cout << "Bin " << i << " with " << total_bins_particles_ph[i].size << std::endl;
-			}
+			//for (int i = 0; i < total_bins; i++) {
+			//	std::cout << "Bin " << i << " with " << total_bins_particles_ph[i].size << std::endl;
+			//}
 		}
 		send_displs = (int*) malloc( (n_proc+1) * sizeof(int) );
 		send_displs[0] = 0;
@@ -372,9 +412,9 @@ particle_t* receive_particles(int* buff_length, int n_proc, particle_t* particle
 	return recv_buff;
 }
 
-// populates buff_length
+// populates buff_length, proc_bins_from, proc_bins_until
 bin_t* organize_and_send_bins( int* buff_length, int n_proc, int bins_per_proc, int total_bins, int rank,
-	int bins_per_row, MPI_Datatype BIN){
+	int bins_per_row, MPI_Datatype BIN, int* proc_bins_from, int* proc_bins_until){
 	int *bins_offsets, *bins_per_proc_sizes;
 	bin_t* global_bins;
 	int recv_count;
@@ -405,20 +445,37 @@ bin_t* organize_and_send_bins( int* buff_length, int n_proc, int bins_per_proc, 
 			bins_offsets[i] = bins_per_proc_sizes[i - 1] + bins_offsets[i - 1];
 			//std::cout << "offset at "<< i << " -> " << bins_offsets[i] << std::endl;
 		}
+		// create lower and upper bin bounds
+
+		for(int i = 0; i < n_proc; i++){
+			proc_bins_from[i] = bins_offsets[i];
+			proc_bins_until[i] = proc_bins_from[i] + bins_per_proc_sizes[i];
+		}
 
 		global_bins = (bin_t*) malloc( total_bins * sizeof(bin_t));
 		reset_bins(global_bins, total_bins);
 		link_bins(bins_per_row, global_bins);
 		//show_bins(global_bins, total_bins, bins_per_row);
+		if(VERBOSE_LEVEL == BINS_LEVEL) {
+			for( int i = 0; i < n_proc; i++ ) {
+				std::cout << "Process " << i << " will handle " << bins_per_proc_sizes[i] << " bins " << std::endl;
+			}
+		}
+
 	}
+
+	// sending the bounds to other processes
+	MPI_Bcast(proc_bins_from, n_proc, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(proc_bins_until, n_proc, MPI_INT, 0, MPI_COMM_WORLD);
+
 	// process 0 sends the size of data to be recevied by everyone else
 	MPI_Scatter(bins_per_proc_sizes, 1, MPI_INT, &recv_count, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
 	if(VERBOSE_LEVEL == BINS_LEVEL) {
-		MPI_Barrier(MPI_COMM_WORLD);
-		if(rank == 0) std::cout << "All processes receive que number of bins to handle\n";
-		std::cout << "Process " << rank << " will handle " << recv_count << " bins " << std::endl;
-		MPI_Barrier(MPI_COMM_WORLD);
+		//MPI_Barrier(MPI_COMM_WORLD);
+		//if(rank == 0) std::cout << "All processes receive que number of bins to handle\n";
+		//std::cout << "Process " << rank << " will handle " << recv_count << " bins " << std::endl;
+
 	}
 	// allocate data to be received
 	bin_t* recv_buff = (bin_t*) malloc( recv_count * sizeof(bin_t));

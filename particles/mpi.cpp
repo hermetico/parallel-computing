@@ -15,7 +15,7 @@
 #define BINS_LEVEL 6
 #define PARTICLES_LEVEL 5
 #define MOVING_PARTICLES_LEVEL 4
-#define VERBOSE_LEVEL 4
+#define VERBOSE_LEVEL 6
 
 // the size of the grid
 extern double size;
@@ -97,7 +97,7 @@ int main( int argc, char **argv )
 	// so far, only slicing rows, would be nice to slice in a grid manner
 	// everyone should know the general layout of the problem
 	int total_bins, bins_per_row, bins_per_proc;
-	double bin_size = cutoff;
+	double bin_size = cutoff; // do not touch
 	bins_per_row = ceil(size / bin_size);
 	total_bins = bins_per_row * bins_per_row;
 
@@ -108,53 +108,84 @@ int main( int argc, char **argv )
 		bins_per_proc += bins_per_row - (bins_per_proc % bins_per_row);
 	}
 
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//std::cout << "receive bins\n";
 	//
 	//
 	//Populate and distribute bins, (work for process 0)
 	//
+	int *proc_bins_from, *proc_bins_until;
+	proc_bins_from = (int *) malloc(n_proc * sizeof(int));
+	proc_bins_until = (int *) malloc(n_proc * sizeof(int));
+
 	bin_t* local_bins;
 	int local_nbins = 0;
-	local_bins = organize_and_send_bins( &local_nbins, n_proc, bins_per_proc, total_bins, rank, bins_per_row, BIN);
+	local_bins = organize_and_send_bins( &local_nbins, n_proc, bins_per_proc, total_bins, rank, bins_per_row, BIN, proc_bins_from, proc_bins_until);
 	// knowing the bins we can populate the placeholders, which are the first entry for linked lists
 	// of particles
 	// the first particle to be pointing from the bin
+
 	particle_ph* local_bins_particles_ph = (particle_ph*) malloc(local_nbins * sizeof(particle_ph));
 	reset_particles_placeholders(local_bins_particles_ph, local_nbins);
 
+	std::cout << "Process " << rank << std::endl;
+	for(int i = 0; i < n_proc; i++){
+		std::cout << "Process " << i << " begins at " << proc_bins_from[i] << std::endl;
+		std::cout << "Process " << i << " ends at " << proc_bins_until[i] << std::endl;
+	}
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//std::cout << "bins received\n";
 
 	// Also, knowing the number of bins we can also define the
 	// outter bins ( the ones in the grey area ) and populate them
 	// define local grey bins for process, this number will be used to define the bins to store outter data
 	// for the bottom and top row we only share one row, two for the rest, unless its only one row of bins
 	int local_ngrey_bins = bins_per_row;
+	// for those with double grey bins: bottom outter bins will be on the left half, top outter bins on the right half
 	if(rank != 0 && rank == n_proc -1 && local_nbins > local_ngrey_bins)
 		local_ngrey_bins *= 2;
 
-
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//std::cout << "receive particles\n";
 	//
 	// Distribute particles across the bins ( mainly work for process 0)
 	//
 	particle_t *local_particles;
 	int  nlocal = 0;
-	local_particles = receive_particles(&nlocal, n_proc, particles, total_bins, rank, n, bin_size, bins_per_row, bins_per_proc, PARTICLE);
+	local_particles = receive_particles(&nlocal, n_proc, particles, total_bins, rank, n, bin_size, bins_per_row,
+	                                    bins_per_proc, PARTICLE);
+
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//std::cout << "particles received\n";
 	// once we have our particles locally, we can assign them to the bins
 	assign_local_particles_to_ph(local_particles, local_bins_particles_ph, nlocal, bins_per_proc);
 
 
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//std::cout << "particles assigned to placeholders\n";
 
 
-
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//std::cout << "sending grey particles\n";
 	//
 	// Distribute grey area particles
 	//
 	particle_t* local_grey_particles;
-	int buff_length = 0;
-	local_grey_particles = send_and_receive_grey_area_particles( &buff_length, n_proc, nlocal, local_particles, bins_per_row, local_nbins, rank, PARTICLE);
+	int grey_nlocal = 0;
+	local_grey_particles = send_and_receive_grey_area_particles( &grey_nlocal, n_proc, nlocal, local_particles, bins_per_row,
+	                                                             local_nbins, rank, PARTICLE, proc_bins_from, proc_bins_until);
 
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//std::cout << "grey particles sent\n";
 	// assign local grey particles to grey bins
 	// we can define the place holders for
 	particle_ph* local_grey_bins_particles_ph = (particle_ph*) malloc(local_ngrey_bins * sizeof(particle_ph));
 	reset_particles_placeholders(local_grey_bins_particles_ph, local_ngrey_bins);
+	assign_local_grey_particles_to_ph(local_grey_particles, local_grey_bins_particles_ph, grey_nlocal, bins_per_row,
+	                                  rank, n_proc,proc_bins_from, proc_bins_until);
+
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//std::cout << "grey particles assigned to grey bins\n";
 
 	//
 	//  set up particle partitioning across processors
@@ -318,6 +349,9 @@ int main( int argc, char **argv )
 		fclose( fsum );
 
 	free(local_bins);
+
+	free(proc_bins_from);
+	free(proc_bins_until);
 
 	free( local_particles );
 	free( local_grey_particles);
