@@ -9,7 +9,7 @@
 #define BINS_LEVEL 6
 #define PARTICLES_LEVEL 5
 #define MOVING_PARTICLES_LEVEL 4
-#define VERBOSE_LEVEL 6
+#define VERBOSE_LEVEL 4
 
 
 typedef struct bin_t bin_t;
@@ -35,6 +35,15 @@ struct particle_ph
 	particle_t* first;
 	int size;
 };
+
+void apply_forces_linked_particles(particle_t* a_particle, particle_t* b_particle, double* dmin, double* davg,  int* navg)
+{
+	while(b_particle)
+	{
+		apply_force(*(a_particle), *(b_particle), dmin, davg, navg);
+		b_particle = b_particle->next;
+	}
+}
 
 int get_bin_id(int bins_per_row, double bin_size,  double x, double y){
 	int binx = floor(x / bin_size);
@@ -64,11 +73,15 @@ int get_local_bin_from_global_bin(int bin_id, int bins_per_proc){
 	return bin_id % bins_per_proc;
 }
 
-int get_local_grey_bin_id_from_global(int global_id, int proc_id, int rank, int n_proc, int bins_per_proc, int bins_per_row,int* proc_bins_from, int* proc_bins_until ){
+int get_local_grey_bin_id_from_global(int global_id, int rank, int n_proc,  int bins_per_row,int* proc_bins_from, int* proc_bins_until ){
+
 	int grey_bin_id = global_id % bins_per_row;
-	if( rank < proc_id) {
-		grey_bin_id += bins_per_row;
-		std::cout << " (right half) ";
+	if( rank < n_proc - 1 && rank > 0) // comes from above?
+	{
+		if( global_id >= proc_bins_from[rank + 1]){
+			grey_bin_id += bins_per_row;
+			//std::cout << " (right half) ";
+		}
 	}
 	return grey_bin_id;
 }
@@ -184,21 +197,14 @@ void assign_local_particles_to_ph(particle_t* particles, particle_ph* local_plac
 void assign_local_grey_particles_to_ph(particle_t* particles, particle_ph* placeholders, int grey_nlocal,
      int bins_per_row, int rank, int n_proc, int* proc_bins_from, int* proc_bins_until )
 {
-	std::cout << "Process " << rank << " with " << grey_nlocal << std::endl;
+	//std::cout << "Process " << rank << " with " << grey_nlocal << std::endl;
 	for(int i = 0; i < grey_nlocal; i++) {
-		std::cout << "Global id " << particles[i].global_bin_id;
-		//int grey_bin_id = get_local_grey_bin_id_from_global(particles[i].global_bin_id,particles[i].proc_id, rank, n_proc, bins_per_proc, bins_per_row);
-		int global_id = particles[i].global_bin_id;
-		int grey_bin_id = global_id % bins_per_row;
-		if( rank < n_proc - 1 && rank > 0) // comes from above?
-		{
-			if( global_id >= proc_bins_from[rank + 1]){
-				grey_bin_id += bins_per_row;
-				std::cout << " (right half) ";
-			}
-		}
-		std::cout << " appending it at grey local bin with id " << grey_bin_id << std::endl;
+		//std::cout << "Global id " << particles[i].global_bin_id << " on rank " << rank;
+		int grey_bin_id = get_local_grey_bin_id_from_global(particles[i].global_bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
+
+		//std::cout << " appending it at grey local bin with id " << grey_bin_id << std::endl;
 		particles[i].next_grey = placeholders[grey_bin_id].first;
+
 		placeholders[grey_bin_id].first = &particles[i];
 		placeholders[grey_bin_id].size++;
 
@@ -242,7 +248,7 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 				grey_send_ph[recv_id].size++;
 				send_counts[recv_id]++;
 				total_send_counts++;
-				std::cout << "Particle at process " << rank << " in bin " << bin_id << " sending it to " <<recv_id <<std::endl;
+				//std::cout << "Particle at process " << rank << " in bin " << bin_id << " sending it to " <<recv_id <<std::endl;
 			}
 		}
 		if( rank > 0 ) {
@@ -256,7 +262,7 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 				grey_send_ph[recv_id].size++;
 				send_counts[recv_id]++;
 				total_send_counts++;
-				std::cout << "Particle at process " << rank << " in bin " << bin_id << " sending it to " << recv_id <<std::endl;
+				//std::cout << "Particle at process " << rank << " in bin " << bin_id << " sending it to " << recv_id <<std::endl;
 			}
 		}
 	}
