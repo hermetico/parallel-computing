@@ -36,6 +36,17 @@ int get_bin_id(int bins_per_row, double bin_size,  double x, double y){
 	return  bins_per_row * biny + binx;
 }
 
+void pt_copy(particle_t* to, particle_t* from){
+	to->ax = from->ax;
+	to->ay = from->ay;
+	to->x = from->x;
+	to->y = from->y;
+	to->vx = from->vx;
+	to->vy = from->vy;
+	to->proc_id = from->proc_id;
+	to->global_bin_id = from->global_bin_id;
+	to->next = from->next;
+}
 
 int get_proc_from_bin(int bin_id, int bins_per_proc){
 	return (int)floor(bin_id / bins_per_proc);

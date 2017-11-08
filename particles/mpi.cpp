@@ -72,7 +72,7 @@ int main( int argc, char **argv )
      * which are the values and the pointer to the next one
      */
     MPI_Datatype PARTICLE;
-	MPI_Type_contiguous( 8, MPI_DOUBLE, &PARTICLE ); // as many doubles as the structure has
+	MPI_Type_contiguous( 9, MPI_DOUBLE, &PARTICLE ); // as many doubles as the structure has
 	MPI_Type_commit( &PARTICLE );
 
 	MPI_Datatype BIN;
@@ -90,6 +90,7 @@ int main( int argc, char **argv )
 
 	//
 	// setup the bin partitioning across processors
+	// so far, only slicing rows, would be nice to slice in a grid manner
 	//
 	int total_bins, bins_per_row, bins_per_proc;
 	double bin_size = cutoff;
@@ -145,6 +146,17 @@ int main( int argc, char **argv )
 	// Send binds to the people
 	MPI_Scatterv(global_bins, bins_per_proc_sizes, bins_offsets, BIN, local_bins, local_nbins, BIN, 0, MPI_COMM_WORLD);
 
+	// define local grey bins for process, this number will be used to define the bins to store outter data
+	// for the bottom and top row we only share one row, two for the rest, unless its only one row of bins
+	int local_ngrey_bins = bins_per_row;
+	if(rank != 0 && rank == n_proc -1 && local_nbins > local_ngrey_bins)
+		local_ngrey_bins *= 2;
+
+	particle_ph* local_grey_bins_particles_ph = (particle_ph*) malloc(local_ngrey_bins * sizeof(particle_ph));
+	for(int i = 0; i < local_ngrey_bins; i++)
+		reset_particles_placeholders(local_bins_particles_ph, local_nbins);
+
+
 	if( VERBOSE > 5) {
 		// DEBUG INFO
 
@@ -176,13 +188,13 @@ int main( int argc, char **argv )
 	{
 		total_bins_particles_ph = (particle_ph*) malloc(total_bins * sizeof(particle_ph));
 		reset_particles_placeholders(total_bins_particles_ph, total_bins);
-		// link particles to bins
+		// assign particles to bins
 		for (int i = 0; i < n; i++) {
 			int global_bin_id = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
 			particles[i].next = total_bins_particles_ph[global_bin_id].first;
 			particles[i].global_bin_id = (double) global_bin_id;
 			particles[i].proc_id = (double) get_proc_from_bin(global_bin_id, bins_per_proc);
-			std::cout << "A particle for proc " << particles[i].proc_id << std::endl;
+			//std::cout << "A particle for proc " << particles[i].proc_id << std::endl;
 			total_bins_particles_ph[global_bin_id].first = &particles[i];
 			total_bins_particles_ph[global_bin_id].size++;
 
@@ -196,6 +208,7 @@ int main( int argc, char **argv )
 			std::cout << "Bin " << i << " with " << total_bins_particles_ph[i].size << std::endl;
 		}
 	}
+
 	int* partition_offsets = (int*) malloc( (n_proc+1) * sizeof(int) );
 	for(int i = 0; i< n_proc+1;i++)
 		partition_offsets[i] = 0;
@@ -211,11 +224,12 @@ int main( int argc, char **argv )
 			particle_t* c_p = total_bins_particles_ph[i].first;
 			while(c_p)
 			{
-				std::cout << "Adding particle for proc " << (int)c_p->proc_id;
+				//std::cout << "Adding particle for proc " << (int)c_p->proc_id;
 				partition_sizes[(int)c_p->proc_id]++;
-				memcpy(ordered_particles + particles_copied, &c_p, sizeof(c_p));
+				//memcpy(ordered_particles + particles_copied, &c_p, sizeof(c_p));
+				pt_copy(ordered_particles + particles_copied, c_p);
 				particles_copied++;
-				std::cout << " " << partition_sizes[(int)c_p->proc_id] <<" so far" <<std::endl;
+				//std::cout << ", it has " << partition_sizes[(int)c_p->proc_id] <<" so far" <<std::endl;
 				c_p = c_p->next;
 			}
 		}
@@ -231,15 +245,12 @@ int main( int argc, char **argv )
 		}
 	}
 
-	//int nlocal = partition_sizes[rank];
-	//particle_t *local_particles = (particle_t*) malloc( nlocal * sizeof(particle_t) );
-	//MPI_Scatterv( ordered_particles, partition_sizes, partition_offsets, PARTICLE, local_particles, nlocal, PARTICLE, 0, MPI_COMM_WORLD );
 	particle_t *local_particles;
 	int nlocal;
 	if(rank == 0){
 		for(int i = 1; i<n_proc; i++)
 		{
-			std::cout << "Sending " << partition_sizes[i] << " to " << i << std::endl;
+			//std::cout << "Sending " << partition_sizes[i] << " to " << i << std::endl;
 			MPI_Send((ordered_particles + partition_offsets[i]), partition_sizes[i], PARTICLE, i, 0, MPI_COMM_WORLD);
 		}
 
@@ -247,7 +258,9 @@ int main( int argc, char **argv )
 		nlocal = partition_sizes[0];
 		local_particles  = (particle_t*) malloc( nlocal * sizeof(particle_t) );
 		for(int i = 0; i < nlocal; i++){
-			memcpy(local_particles + i, ordered_particles + i, sizeof(particle_t));
+			//memcpy(local_particles + i, ordered_particles + i, sizeof(particle_t));
+			pt_copy(local_particles + i, ordered_particles + i);
+			(local_particles+i)->next = NULL;
 		}
 	}else{
 
@@ -261,11 +274,124 @@ int main( int argc, char **argv )
 	if(VERBOSE == 5){
 		MPI_Barrier(MPI_COMM_WORLD);
 		std::cout << "Process " << rank << " with " << nlocal << " particles " << std::endl;
-		//for(int i = 0; i < nlocal; i++){
-		//	std::cout << "Received particle for process " << local_particles[i].proc_id << " for bin " << local_particles[i].global_bin_id << std::endl;
-		//}
+		for(int i = 0; i < nlocal; i++){
+			std::cout << "Received particle for process " << local_particles[i].proc_id << " for bin " << local_particles[i].global_bin_id << std::endl;
+		}
 	}
+
+	// once we have our particles locally, we can assign them to the bins
+	for(int i = 0; i < nlocal; i++)
+	{
+		int local_bin = get_local_bin_from_global_bin(local_particles[i].global_bin_id, bins_per_proc);
+		local_bins_particles_ph[local_bin].first = &local_particles[i];
+		local_bins_particles_ph[local_bin].size++;
+	}
+	if(VERBOSE == 5) {
+		MPI_Barrier(MPI_COMM_WORLD);
+		std::cout << "Process " << rank << " assigned particles locally " << std::endl;
+	}
+
+	// once we have all the particles, we can distribute the ones in our grey zone
+
 	// prepare structure
+	// first check to send to upper process
+	//particle_t* grey_send_buff  = (particle_t*) malloc( 2 * n * sizeof(particle_t) );
+	//particle_t* grey_recv_buff  = (particle_t*) malloc( 2 * n * sizeof(particle_t) );
+	particle_ph* grey_send_ph  = (particle_ph*) malloc( n_proc * sizeof(particle_ph) );
+	reset_particles_placeholders(grey_send_ph, n_proc);
+	int* send_counts = (int*) malloc(n_proc * sizeof(int));
+	for(int i = 0; i< n_proc; i++){
+		send_counts[i] = 0;
+	}
+	int* recv_counts = (int*) malloc(n_proc * sizeof(int));
+	int* send_displs = (int*) malloc(1 + n_proc * sizeof(int));
+	int* recv_displs = (int*) malloc(1 + n_proc * sizeof(int));
+
+
+	int total_send_counts = 0;
+	// collect info about data to be sent
+	for(int i = 0; i < nlocal; i++){
+		int bin_id = local_particles[i].global_bin_id;
+		// needs to go up?
+		if(bin_id + bins_per_row >= local_nbins * rank && rank < n_proc - 1)
+		{
+			int recv_id = rank + 1;
+			//pt_copy(&grey_send_buff[particle_per_proc * recv_id + send_counts[recv_id]], &local_particles[i]);
+			local_particles[i].next = grey_send_ph[recv_id].first;
+			grey_send_ph[recv_id].first = &local_particles[i];
+			grey_send_ph[recv_id].size++;
+			send_counts[recv_id]++;
+			total_send_counts++;
+			std::cout << "Particle at process " << rank << " sending it to " <<recv_id <<std::endl;
+		}else{
+			std::cout << "Particle at process " << rank << " not going anywhere\n";
+		}
+		// needs to go down?
+		if(bin_id - bins_per_row < local_nbins * rank && rank != 0)
+		{
+			int recv_id = rank - 1;
+			local_particles[i].next = grey_send_ph[recv_id].first;
+			grey_send_ph[recv_id].first = &local_particles[i];
+			grey_send_ph[recv_id].size++;
+			send_counts[recv_id]++;
+			total_send_counts++;
+		}
+	}
+	// organize data to be sent
+	particle_t* grey_send_buff  = (particle_t*) malloc( total_send_counts *  sizeof(particle_t) );
+	int pos = 0;
+	for(int i = 0; i< n_proc; i++)
+	{
+		particle_t* c_p = grey_send_ph[i].first;
+		for(int j = 0; j < grey_send_ph[i].size; j++){
+
+			pt_copy(&grey_send_buff[pos], c_p);
+			c_p = c_p->next;
+			pos++;
+		}
+	}
+
+	if(VERBOSE == 5) {
+		MPI_Barrier(MPI_COMM_WORLD);
+		std::cout << "Process " << rank << " grey particles assigned " << std::endl;
+	}
+	// prepare the offsets
+	send_displs[0] = 0;
+	for(int i = 1; i< n_proc+1;i++) {
+		send_displs[i] = min(send_displs[i - 1] + send_counts[i - 1], n);
+	}
+	if(VERBOSE == 5){
+		MPI_Barrier(MPI_COMM_WORLD);
+		for(int i = 0; i < n_proc; i++){
+			std::cout << "Process " << rank << " will send: " ;
+			std::cout << send_counts[i] << " particles to process " << i  << std::endl;
+		}
+	}
+
+	// let them know the quantity of data to receive
+	MPI_Alltoall(send_counts, 1, MPI_INT, recv_counts, 1,MPI_INT,  MPI_COMM_WORLD);
+	if(VERBOSE == 5){
+		MPI_Barrier(MPI_COMM_WORLD);
+		for(int i = 0; i < n_proc; i++){
+			std::cout << "Process " << rank << " will receive: " ;
+			std::cout << recv_counts[i] << " particles from process " << i  << std::endl;
+		}
+	}
+
+	int total_recv_counts = 0;
+	recv_displs[0] = 0;
+	for(int i = 1; i< n_proc+1;i++) {
+		total_recv_counts +=recv_counts[i - 1];
+		recv_displs[i] = min(recv_displs[i - 1] + recv_counts[i - 1], n);
+	}
+	particle_t* grey_recv_buff  = (particle_t*) malloc( total_recv_counts * sizeof(particle_t) );
+	MPI_Alltoallv(grey_send_buff, send_counts, send_displs, PARTICLE, grey_recv_buff, recv_counts, recv_displs, PARTICLE, MPI_COMM_WORLD);
+	if(VERBOSE == 5){
+		MPI_Barrier(MPI_COMM_WORLD);
+		std::cout << "All processes have received data\n";
+	}
+
+
 
 	//
 	//  set up particle partitioning across processors
