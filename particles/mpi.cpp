@@ -14,7 +14,8 @@
 #define cutoff  0.01
 #define BINS_LEVEL 6
 #define PARTICLES_LEVEL 5
-#define VERBOSE_LEVEL 6
+#define MOVING_PARTICLES_LEVEL 4
+#define VERBOSE_LEVEL 4
 
 // the size of the grid
 extern double size;
@@ -56,9 +57,7 @@ int main( int argc, char **argv )
 	MPI_Init( &argc, &argv );
 	MPI_Comm_size( MPI_COMM_WORLD, &n_proc );
 	MPI_Comm_rank( MPI_COMM_WORLD, &rank );
-	if(VERBOSE_LEVEL > PARTICLES_LEVEL && rank == 0) {
-		std::cout << "A total of " << n_proc << " processes" << std::endl;
-	}
+
 	
 	//
 	//  allocate generic resources
@@ -67,14 +66,17 @@ int main( int argc, char **argv )
 	FILE *fsum = sumname && rank == 0 ? fopen ( sumname, "a" ) : NULL;
 
 
-	particle_t *particles = (particle_t*) malloc( n * sizeof(particle_t) );
-	particle_t *ordered_particles = (particle_t*) malloc( n * sizeof(particle_t) );
+	particle_t *particles;
+	if(rank == 0){
+		particles = (particle_t*) malloc( n * sizeof(particle_t) );
+	}
+
 	
     /* Creates a datatype for the particle, it contains 7 double
      * which are the values and the pointer to the next one
      */
     MPI_Datatype PARTICLE;
-	MPI_Type_contiguous( 9, MPI_DOUBLE, &PARTICLE ); // as many doubles as the structure has
+	MPI_Type_contiguous( 10, MPI_DOUBLE, &PARTICLE ); // as many doubles as the structure has
 	MPI_Type_commit( &PARTICLE );
 
 	MPI_Datatype BIN;
@@ -83,7 +85,7 @@ int main( int argc, char **argv )
 
 
 	//
-	//  initialize and distribute the particles (that's fine to leave it unoptimized)
+	//  initialize and distribute the particles
 	//
 	set_size( n );
 	if( rank == 0 )
@@ -93,212 +95,66 @@ int main( int argc, char **argv )
 	//
 	// setup the bin partitioning across processors
 	// so far, only slicing rows, would be nice to slice in a grid manner
-	//
+	// everyone should know the general layout of the problem
 	int total_bins, bins_per_row, bins_per_proc;
 	double bin_size = cutoff;
 	bins_per_row = ceil(size / bin_size);
 	total_bins = bins_per_row * bins_per_row;
 
-	if(VERBOSE_LEVEL > PARTICLES_LEVEL && rank == 0)
-		std::cout << "Total global bins " << total_bins <<  std::endl;
 
-	bins_per_proc = (total_bins +  n_proc - 1) / n_proc;
+	bins_per_proc = total_bins / n_proc;
 	// bins_per_proc should be divisible by bins_per_row ( easier to handle I hope)
-	//TODO CHECK DOUBLE CHECK TRIPPPPLE CHECK THIS
 	if(bins_per_proc % bins_per_row != 0){
 		bins_per_proc += bins_per_row - (bins_per_proc % bins_per_row);
 	}
-	int* bins_offsets = (int*) malloc( (n_proc+1) * sizeof(int) );
-	for( int i = 0; i < n_proc + 1; i++ )
-		bins_offsets[i] = min(i * bins_per_proc, total_bins);
 
-	int* bins_per_proc_sizes = (int*) malloc( n_proc * sizeof(int) );
-	for( int i = 0; i < n_proc; i++ )
-		bins_per_proc_sizes[i] = bins_offsets[i+1] - bins_offsets[i];
-
-
+	//
+	//
+	//Populate and distribute bins, (work for process 0)
+	//
 	bin_t* local_bins;
-	bin_t* global_bins;
-	// the real local number of bins
-	int local_nbins = bins_per_proc_sizes[rank];
-	local_bins = (bin_t*) malloc( local_nbins * sizeof(bin_t));
+	int local_nbins = 0;
+	local_bins = organize_and_send_bins( &local_nbins, n_proc, bins_per_proc, total_bins, rank, bins_per_row, BIN);
+	// knowing the bins we can populate the placeholders, which are the first entry for linked lists
+	// of particles
 	// the first particle to be pointing from the bin
 	particle_ph* local_bins_particles_ph = (particle_ph*) malloc(local_nbins * sizeof(particle_ph));
 	reset_particles_placeholders(local_bins_particles_ph, local_nbins);
 
-	if(rank == 0) // global bins setup from process 0
-	{
-		global_bins = (bin_t*) malloc( total_bins * sizeof(bin_t));
-		for (int i = 0; i < total_bins; i++) {
-			bin_t new_bin;
-			new_bin.top = -1;
-			new_bin.bottom = -1;
-			new_bin.left = -1;
-			new_bin.right = -1;
-			new_bin.top_left = -1;
-			new_bin.top_right = -1;
-			new_bin.bottom_left = -1;
-			new_bin.bottom_right = -1;
-			new_bin.global_id = i;
-			global_bins[i] = new_bin;
-		}
-		link_bins(bins_per_row, global_bins);
-	}
 
-	// Send binds to the people
-	MPI_Scatterv(global_bins, bins_per_proc_sizes, bins_offsets, BIN, local_bins, local_nbins, BIN, 0, MPI_COMM_WORLD);
-
+	// Also, knowing the number of bins we can also define the
+	// outter bins ( the ones in the grey area ) and populate them
 	// define local grey bins for process, this number will be used to define the bins to store outter data
 	// for the bottom and top row we only share one row, two for the rest, unless its only one row of bins
 	int local_ngrey_bins = bins_per_row;
 	if(rank != 0 && rank == n_proc -1 && local_nbins > local_ngrey_bins)
 		local_ngrey_bins *= 2;
 
-	particle_ph* local_grey_bins_particles_ph = (particle_ph*) malloc(local_ngrey_bins * sizeof(particle_ph));
-	for(int i = 0; i < local_ngrey_bins; i++)
-		reset_particles_placeholders(local_bins_particles_ph, local_nbins);
-
-
-	if( VERBOSE_LEVEL > PARTICLES_LEVEL) {
-		// DEBUG INFO
-
-		if (rank == 0)
-			std::cout << "total bins " << total_bins << std::endl;
-
-		MPI_Barrier(MPI_COMM_WORLD);
-		std::cout << "proces " << rank << " bins assigned " << local_nbins << std::endl;
-		std::cout << "proces " << rank << ":" << std::endl;
-
-		for( int i = 0; i < local_nbins; i++){
-
-			int global_id = local_bins[i].global_id;
-			std::cout << "Global id " << local_bins[i].global_id << " this bin should be at processor ";
-			std::cout << get_proc_from_bin(global_id, bins_per_proc);
-			std::cout << " ; local id "  << i ;
-			std::cout << " and  computed local id " << get_local_bin_from_global_bin(global_id, bins_per_proc) << std::endl;
-		}
-
-	}
 
 	//
-	// Distribute particles across the bins
+	// Distribute particles across the bins ( mainly work for process 0)
 	//
-	particle_ph* total_bins_particles_ph;
-	int particle_per_proc = (n + n_proc - 1) / n_proc; // lets hope this is always true
-
-	if(rank == 0) // global bins setup from process 0
-	{
-		total_bins_particles_ph = (particle_ph*) malloc(total_bins * sizeof(particle_ph));
-		reset_particles_placeholders(total_bins_particles_ph, total_bins);
-		// assign particles to bins
-		for (int i = 0; i < n; i++) {
-			int global_bin_id = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
-			particles[i].next = total_bins_particles_ph[global_bin_id].first;
-			particles[i].global_bin_id = (double) global_bin_id;
-			particles[i].proc_id = (double) get_proc_from_bin(global_bin_id, bins_per_proc);
-			//std::cout << "A particle for proc " << particles[i].proc_id << std::endl;
-			total_bins_particles_ph[global_bin_id].first = &particles[i];
-			total_bins_particles_ph[global_bin_id].size++;
-
-		}
-
-		show_bins(total_bins_particles_ph, total_bins, bins_per_row);
-	}
-	if (VERBOSE_LEVEL > PARTICLES_LEVEL) {
-		MPI_Barrier(MPI_COMM_WORLD);
-		for (int i = 0; i < total_bins; i++) {
-			std::cout << "Bin " << i << " with " << total_bins_particles_ph[i].size << std::endl;
-		}
-	}
-
-	int* partition_offsets = (int*) malloc( (n_proc+1) * sizeof(int) );
-	for(int i = 0; i< n_proc+1;i++)
-		partition_offsets[i] = 0;
-
-	int* partition_sizes = (int*) malloc( n_proc * sizeof(int) );
-	for(int i = 0; i< n_proc;i++)
-		partition_sizes[i] = 0;
-
-	// prepare data to be sent ot other processes
-	if(rank == 0){
-		int particles_copied = 0;
-		for (int i = 0; i < total_bins; i++) {
-			particle_t* c_p = total_bins_particles_ph[i].first;
-			while(c_p)
-			{
-				//std::cout << "Adding particle for proc " << (int)c_p->proc_id;
-				partition_sizes[(int)c_p->proc_id]++;
-				//memcpy(ordered_particles + particles_copied, &c_p, sizeof(c_p));
-				pt_copy(ordered_particles + particles_copied, c_p);
-				particles_copied++;
-				//std::cout << ", it has " << partition_sizes[(int)c_p->proc_id] <<" so far" <<std::endl;
-				c_p = c_p->next;
-			}
-		}
-		for(int i = 1; i< n_proc+1;i++) {
-			partition_offsets[i] = min(partition_offsets[i - 1] + partition_sizes[i - 1], n);
-
-		}
-	}
-	if(VERBOSE_LEVEL == PARTICLES_LEVEL && rank == 0){
-		for(int i = 0; i< n_proc;i++) {
-			std::cout << "Size at " << i << " = " << partition_sizes[i] << std::endl;
-			std::cout << "Offset at " << i << " = " << partition_offsets[i] << std::endl;
-		}
-	}
-
 	particle_t *local_particles;
-	int nlocal;
-	if(rank == 0){
-		for(int i = 1; i<n_proc; i++)
-		{
-			//std::cout << "Sending " << partition_sizes[i] << " to " << i << std::endl;
-			MPI_Send((ordered_particles + partition_offsets[i]), partition_sizes[i], PARTICLE, i, 0, MPI_COMM_WORLD);
-		}
-
-		// no need for comunication, no need for copy this here either though, but :/
-		nlocal = partition_sizes[0];
-		local_particles  = (particle_t*) malloc( nlocal * sizeof(particle_t) );
-		for(int i = 0; i < nlocal; i++){
-			//memcpy(local_particles + i, ordered_particles + i, sizeof(particle_t));
-			pt_copy(local_particles + i, ordered_particles + i);
-			(local_particles+i)->next = NULL;
-		}
-	}else{
-
-		MPI_Status status;
-		MPI_Probe(0, 0, MPI_COMM_WORLD, &status);
-		MPI_Get_count(&status, PARTICLE, &nlocal);
-		local_particles  = (particle_t*) malloc( nlocal * sizeof(particle_t) );
-		MPI_Recv(local_particles, nlocal, PARTICLE, 0, 0, MPI_COMM_WORLD, &status);
-	}
-
-	if(VERBOSE_LEVEL == PARTICLES_LEVEL){
-		MPI_Barrier(MPI_COMM_WORLD);
-		std::cout << "Process " << rank << " with " << nlocal << " particles " << std::endl;
-		for(int i = 0; i < nlocal; i++){
-			std::cout << "Received particle for process " << local_particles[i].proc_id << " for bin " << local_particles[i].global_bin_id << std::endl;
-		}
-	}
-
+	int  nlocal = 0;
+	local_particles = receive_particles(&nlocal, n_proc, particles, total_bins, rank, n, bin_size, bins_per_row, bins_per_proc, PARTICLE);
 	// once we have our particles locally, we can assign them to the bins
-	for(int i = 0; i < nlocal; i++)
-	{
-		int local_bin = get_local_bin_from_global_bin(local_particles[i].global_bin_id, bins_per_proc);
-		local_bins_particles_ph[local_bin].first = &local_particles[i];
-		local_bins_particles_ph[local_bin].size++;
-	}
-	if(VERBOSE_LEVEL == PARTICLES_LEVEL) {
-		MPI_Barrier(MPI_COMM_WORLD);
-		std::cout << "Process " << rank << " assigned particles locally " << std::endl;
-	}
-
-	// once we have all the particles, we can distribute the ones in our grey zone
-	particle_t* recv_buff;
-	int buff_length;
-	send_and_receive_grey_area_particles(recv_buff, &buff_length, n_proc, nlocal, local_particles, bins_per_row, local_nbins, rank, PARTICLE);
+	assign_local_particles_to_ph(local_particles, local_bins_particles_ph, nlocal, bins_per_proc);
 
 
+
+
+
+	//
+	// Distribute grey area particles
+	//
+	particle_t* local_grey_particles;
+	int buff_length = 0;
+	local_grey_particles = send_and_receive_grey_area_particles( &buff_length, n_proc, nlocal, local_particles, bins_per_row, local_nbins, rank, PARTICLE);
+
+	// assign local grey particles to grey bins
+	// we can define the place holders for
+	particle_ph* local_grey_bins_particles_ph = (particle_ph*) malloc(local_ngrey_bins * sizeof(particle_ph));
+	reset_particles_placeholders(local_grey_bins_particles_ph, local_ngrey_bins);
 
 	//
 	//  set up particle partitioning across processors
@@ -460,11 +316,19 @@ int main( int argc, char **argv )
 	//
 	if ( fsum )
 		fclose( fsum );
+
 	free(local_bins);
-	free( bins_offsets );
-	free( bins_per_proc_sizes );
-	//free( local );
-	free( particles );
+
+	free( local_particles );
+	free( local_grey_particles);
+
+
+	free( local_bins_particles_ph);
+	free( local_grey_bins_particles_ph);
+
+	if (rank == 0) {
+		free(particles);
+	}
 	if( fsave )
 		fclose( fsave );
 	
