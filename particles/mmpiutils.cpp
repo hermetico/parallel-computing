@@ -41,11 +41,15 @@ struct particle_ph
 
 void apply_forces_linked_particles(particle_t* a_particle, particle_t* b_particle, double* dmin, double* davg,  int* navg)
 {
+	//int count = 0;
 	while(b_particle)
 	{
 		apply_force(*(a_particle), *(b_particle), dmin, davg, navg);
 		b_particle = b_particle->next;
+	//	count++;
+
 	}
+	//std::cout << "Up to " << count << " interactions\n";
 }
 
 int get_bin_id(int bins_per_row, double bin_size,  double x, double y){
@@ -70,7 +74,7 @@ void pt_copy_data(particle_t* to, particle_t* from){
 }
 
 int get_proc_from_bin(int bin_id, int bins_per_proc){
-	return (int)floor(bin_id / bins_per_proc);
+	return bin_id / bins_per_proc;
 }
 
 int get_local_bin_from_global_bin(int bin_id, int bins_per_proc){
@@ -105,33 +109,46 @@ void link_bins(int bins_per_row, bin_t* bins){
 		for(int x = 0; x < bins_per_row; x++)
 		{
 			bin_t* c_bin = &bins[y * bins_per_row + x];
+			//std::cout << "Bin " << y * bins_per_row + x << " linked with :\n";
 			if( y > 0)
 			{
 				c_bin->bottom = (y-1) * bins_per_row + x;
-
-				if (x > 0)
+				//std::cout << "Bin " << (y-1) * bins_per_row + x << "\n";
+				if (x > 0) {
 					c_bin->bottom_left = (y - 1) * bins_per_row + (x - 1);
+					//std::cout << "Bin " << (y - 1) * bins_per_row + (x - 1) << "\n";
+				}
 
-				if (x < bins_per_row - 1)
+				if (x < bins_per_row - 1) {
 					c_bin->bottom_right = (y - 1) * bins_per_row + (x + 1);
+					//std::cout << "Bin " << (y - 1) * bins_per_row + (x + 1) << "\n";
+				}
 			}
 
 			if( y < bins_per_row - 1)
 			{
 				c_bin->top = (y+1) * bins_per_row + x;
-
-				if (x > 0)
+				//std::cout << "Bin " << (y+1) * bins_per_row + x << "\n";
+				if (x > 0) {
 					c_bin->top_left = (y + 1) * bins_per_row + (x - 1);
+					//std::cout << "Bin " << (y + 1) * bins_per_row + (x - 1) << "\n";
+				}
 
-				if (x < bins_per_row - 1)
+				if (x < bins_per_row - 1) {
 					c_bin->top_right = (y + 1) * bins_per_row + (x + 1);
+					//std::cout << "Bin " << (y + 1) * bins_per_row + (x + 1) << "\n";
+				}
 			}
 
-			if (x > 0)
+			if (x > 0) {
 				c_bin->left = y * bins_per_row + (x - 1);
+				//std::cout << "Bin " << y * bins_per_row + (x - 1) << "\n";
+			}
 
-			if (x < bins_per_row - 1)
+			if (x < bins_per_row - 1) {
 				c_bin->right = y * bins_per_row + (x + 1);
+				//std::cout << "Bin " <<y * bins_per_row + (x + 1) << "\n";
+			}
 		}
 	}
 }
@@ -246,7 +263,7 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 		int bin_id = local_particles[i].global_bin_id;
 		if(rank < n_proc - 1) {
 			// needs to go up?
-			if (bin_id  + bins_per_row >= proc_bins_from[rank + 1])// && bin_id + bins_per_row <= proc_bins_until[rank + 1])
+			if (bin_id  + bins_per_row  >= proc_bins_from[rank + 1])// && bin_id + bins_per_row <= proc_bins_until[rank + 1])
 			{
 				int recv_id = rank + 1;
 				local_particles[i].next_grey_up = grey_send_up_ph[recv_id].first;
@@ -260,7 +277,7 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 		// same particle can go up and down, it happens when processes only have one row of bins
 		if( rank > 0 ) {
 			// needs to go down?
-			if (bin_id - bins_per_row <= proc_bins_until[rank - 1])// && bin_id - bins_per_row<= proc_bins_until[rank - 1])
+			if (bin_id - (bins_per_row * 2) <= proc_bins_until[rank - 1])// && bin_id - bins_per_row<= proc_bins_until[rank - 1])
 				//if(bin_id - bins_per_row < local_nbins * (rank + 1) && rank != 0)
 			{
 				int recv_id = rank - 1;
@@ -565,7 +582,8 @@ particle_t* send_and_receive_local_particles(particle_t* local_particles,int* bu
 		particle_t* c_p = proc_placeholders[i].first;
 		//std::cout << "Process " << rank << " place holder of " <<i << " with size " << proc_placeholders[i].size << std::endl;
 		for (int j = 0; j < proc_placeholders[i].size; j++) {
-			//std::cout << "Process " << rank << " copying" << std::endl;
+
+
 			pt_copy_data(&send_buff[pos], c_p);
 			c_p = c_p->next;
 			pos++;

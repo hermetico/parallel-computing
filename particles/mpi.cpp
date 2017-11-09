@@ -100,7 +100,7 @@ int main( int argc, char **argv )
 	// so far, only slicing rows, would be nice to slice in a grid manner
 	// everyone should know the general layout of the problem
 	int total_bins, bins_per_row, bins_per_proc;
-	double bin_size = cutoff * 2;
+	double bin_size = cutoff;
 	bins_per_row = ceil(size / bin_size);
 	total_bins = bins_per_row * bins_per_row;
 
@@ -108,7 +108,7 @@ int main( int argc, char **argv )
 	bins_per_proc = total_bins / n_proc;
 	// bins_per_proc should be divisible by bins_per_row ( easier to handle I hope)
 	if(bins_per_proc % bins_per_row != 0){
-		bins_per_proc += bins_per_row - (bins_per_proc % bins_per_row);
+		bins_per_proc += (bins_per_row - (bins_per_proc % bins_per_row));
 	}
 
 	//MPI_Barrier(MPI_COMM_WORLD);
@@ -145,13 +145,13 @@ int main( int argc, char **argv )
 	// for the bottom and top row we only share one row, two for the rest, unless its only one row of bins
 	int local_ngrey_bins = bins_per_row;
 	// for those with double grey bins: bottom outter bins will be on the left half, top outter bins on the right half
-	if(rank > 0 && rank < n_proc -1 && local_nbins > local_ngrey_bins)
+	if(rank > 0 && rank < n_proc -1)// && local_nbins > local_ngrey_bins)
 		local_ngrey_bins *= 2;
 
 	//MPI_Barrier(MPI_COMM_WORLD);
 	//std::cout << "receive particles\n";
 	//
-	// Distribute particles across the bins ( mainly work for process 0)
+	// Distribute particles across the bins
 	//
 	particle_t *local_particles;
 	int  nlocal = 0;
@@ -193,7 +193,7 @@ int main( int argc, char **argv )
 	//
 
 	double simulation_time = read_timer( );
-	for( int step = 0; step <NSTEPS; step++ )
+	for( int step = 0; step < NSTEPS; step++ )
 	{
 		navg = 0;
 		dmin = 1.0;
@@ -201,13 +201,25 @@ int main( int argc, char **argv )
 
 
 
+		int* counts = (int*) malloc(n_proc * sizeof(int));
+		int* displs = (int*) malloc(n_proc * sizeof(int));
 
+		MPI_Gather(&nlocal, 1, MPI_INT, counts, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		displs[0] = 0;
+		for(int i = 1; i< n_proc; i++)
+		{
+			displs[i] = displs[i-1] + counts[i-1];
+		}
+
+		MPI_Gatherv(local_particles, nlocal, PARTICLE, particles, counts, displs, PARTICLE,0,  MPI_COMM_WORLD);
 		//
 		//  save current step if necessary (slightly different semantics than in other codes)
 		//
-		//if( find_option( argc, argv, "-no" ) == -1 )
-		//  if( fsave && (step%SAVEFREQ) == 0 )
-		//	save( fsave, n, particles );
+		if( find_option( argc, argv, "-no" ) == -1 )
+		  if( fsave && (step%SAVEFREQ) == 0 ) {
+			  //MPI_gather( local_particles, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
+			  save(fsave, n, particles);
+		  }
 		//
 		//
 		//  compute all forces
@@ -220,14 +232,16 @@ int main( int argc, char **argv )
 			particle_ph* ph = &local_bins_particles_ph[y];
 
 			particle_t* c_particle = ph->first;
-			particle_t* other = NULL;
+			particle_t* other;
 			while(c_particle)
 			{
 
+				other = NULL;
 				c_particle->ax = 0;
 				c_particle->ay = 0;
 
 				// same bin
+				//std::cout << "Particle at bin " << c_bin->global_id << " interacting with:\n ";
 				apply_forces_linked_particles(c_particle, ph->first, &dmin, &davg, &navg);
 
 
@@ -246,7 +260,7 @@ int main( int argc, char **argv )
 						//std::cout << "Process " << rank << " local neighbor in " << bin_id << std::endl;
 
 					}
-
+					//std::cout << "Bin " << c_bin->top << " \n ";
 					apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
 				}
 
@@ -264,6 +278,7 @@ int main( int argc, char **argv )
 						other = local_bins_particles_ph[bin_id].first;
 						//std::cout << "Process " << rank << " local neighbor in " << bin_id << std::endl;
 					}
+					//std::cout << "Bin " << c_bin->bottom << " \n ";
 					apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
 
 				}
@@ -272,14 +287,18 @@ int main( int argc, char **argv )
 					int bin_id = c_bin->left;
 					bin_id = get_local_bin_from_global_bin(bin_id, bins_per_proc);
 					other = local_bins_particles_ph[bin_id].first;
+					//std::cout << "Bin " << c_bin->left << " \n ";
 					apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
+
 				}
 
 				if(c_bin->right != -1){ // always in local bin
 					int bin_id = c_bin->right;
 					bin_id = get_local_bin_from_global_bin(bin_id, bins_per_proc);
 					other = local_bins_particles_ph[bin_id].first;
+					//std::cout << "Bin " << c_bin->right << " \n ";
 					apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
+
 				}
 
 				if(c_bin->top_left != -1) {
@@ -296,6 +315,7 @@ int main( int argc, char **argv )
 						//std::cout << "Process " << rank << " local neighbor in " << bin_id << std::endl;
 
 					}
+					//std::cout << "Bin " << c_bin->top_left << " \n ";
 					apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
 
 				}
@@ -312,6 +332,7 @@ int main( int argc, char **argv )
 						other = local_bins_particles_ph[bin_id].first;
 						//std::cout << "Process " << rank << " local neighbor in " << bin_id << std::endl;
 					}
+					//std::cout << "Bin " << c_bin->top_right << " \n ";
 					apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
 
 				}
@@ -330,6 +351,7 @@ int main( int argc, char **argv )
 						//std::cout << "Process " << rank << " local neighbor in " << bin_id << std::endl;
 
 					}
+					//std::cout << "Bin " << c_bin->bottom_left << " \n ";
 					apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
 
 				}
@@ -349,7 +371,9 @@ int main( int argc, char **argv )
 						//std::cout << "Process " << rank << " local neighbor in " << bin_id << std::endl;
 
 					}
+					//std::cout << "Bin " << c_bin->bottom_right << " \n ";
 					apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
+
 
 				}
 				c_particle = c_particle->next;
@@ -358,11 +382,17 @@ int main( int argc, char **argv )
 		}
 
 
+		//
+		//  move particles
+		//
+		for( int i = 0; i < nlocal; i++ )
+			move( local_particles[i] );
+
 
 	 
 		if( find_option( argc, argv, "-no" ) == -1 )
 		{
-		  
+
 		  MPI_Reduce(&davg,&rdavg,1,MPI_DOUBLE,MPI_SUM,0,MPI_COMM_WORLD);
 		  MPI_Reduce(&navg,&rnavg,1,MPI_INT,MPI_SUM,0,MPI_COMM_WORLD);
 		  MPI_Reduce(&dmin,&rdmin,1,MPI_DOUBLE,MPI_MIN,0,MPI_COMM_WORLD);
@@ -380,11 +410,6 @@ int main( int argc, char **argv )
 		  }
 		}
 
-		//
-		//  move particles
-		//
-		for( int i = 0; i < nlocal; i++ )
-			move( local_particles[i] );
 
 
 		// Update particles bins
@@ -430,7 +455,7 @@ int main( int argc, char **argv )
 		//MPI_Barrier(MPI_COMM_WORLD);
 		//std::cout <<"Process " << rank << " has " << nlocal << " particles\n";
 	}
-
+	//show_placeholders(local_bins_particles_ph,local_nbins, bins_per_row);
 	simulation_time = read_timer( ) - simulation_time;
   
 	if (rank == 0) {  
