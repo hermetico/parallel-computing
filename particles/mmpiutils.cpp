@@ -192,6 +192,7 @@ void assign_particles_to_ph(particle_t* particles, particle_ph* particle_ph, int
 void assign_local_particles_to_ph(particle_t* particles, particle_ph* local_placeholders,  int nlocal, int bins_per_proc){
 	for(int i = 0; i < nlocal; i++)
 	{
+
 		int local_bin = get_local_bin_from_global_bin(particles[i].global_bin_id, bins_per_proc);
 		particles[i].next = local_placeholders[local_bin].first;
 		local_placeholders[local_bin].first = &particles[i];
@@ -209,7 +210,6 @@ void assign_local_grey_particles_to_ph(particle_t* particles, particle_ph* place
 
 		//std::cout << " appending it at grey local bin with id " << grey_bin_id << std::endl;
 		particles[i].next = placeholders[grey_bin_id].first;
-
 		placeholders[grey_bin_id].first = &particles[i];
 		placeholders[grey_bin_id].size++;
 
@@ -241,7 +241,6 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 	}
 
 	int total_send_counts = 0;
-	int current = -1;
 	// collect info about data to be sent
 	for(int i = 0; i < nlocal; i++){
 		int bin_id = local_particles[i].global_bin_id;
@@ -256,7 +255,6 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 				send_counts[recv_id]++;
 				total_send_counts++;
 				//std::cout << "Particle at process " << rank << " in bin " << bin_id << " sending it to " <<recv_id <<std::endl;
-				current = i;
 			}
 		}
 		// same particle can go up and down, it happens when processes only have one row of bins
