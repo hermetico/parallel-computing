@@ -16,14 +16,13 @@ const int SAVEFREQ = 10;
 typedef struct particle_t particle_t;
 struct particle_t
 {
-	double x;
-    double y;
-    double vx;
-    double vy;
-    double ax;
-	double ay;
-    particle_t* next = NULL;
-	double global_bin_id;
+  double x;
+  double y;
+  double vx;
+  double vy;
+  double ax;
+  double ay;
+  particle_t* next = NULL;
 };
 
 //
