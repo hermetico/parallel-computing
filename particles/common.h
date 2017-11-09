@@ -23,7 +23,8 @@ struct particle_t
 	double ax;
 	double ay;
 	particle_t* next = NULL;
-	particle_t* next_grey = NULL;
+	particle_t* next_grey_up = NULL;
+	particle_t* next_grey_down = NULL;
 	double global_bin_id;
 	double proc_id;
 };

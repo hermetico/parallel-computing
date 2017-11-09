@@ -79,7 +79,7 @@ int main( int argc, char **argv )
      * which are the values and the pointer to the next one
      */
     MPI_Datatype PARTICLE;
-	MPI_Type_contiguous( 10, MPI_DOUBLE, &PARTICLE ); // as many doubles as the structure has
+	MPI_Type_contiguous( 11, MPI_DOUBLE, &PARTICLE ); // as many doubles as the structure has
 	MPI_Type_commit( &PARTICLE );
 
 	MPI_Datatype BIN;
@@ -212,14 +212,6 @@ int main( int argc, char **argv )
 		//
 		//  compute all forces
 		//
-		/*
-		for( int i = 0; i < local_particles; i++ )
-		{
-			local[i].ax = local[i].ay = 0;
-			for (int j = 0; j < n; j++ )
-				apply_force( local[i], particles[j], &dmin, &davg, &navg );
-		}
-		 */
 
 		// compute forces
 		for(int y = 0; y < local_nbins; y++ )
@@ -242,7 +234,7 @@ int main( int argc, char **argv )
 					if(c_bin->top != -1){
 						//std::cout << "Process " << rank << " local bin " << y << std::endl;
 						int bin_id = c_bin->top;
-						if( bin_id <= proc_bins_until[rank]) // must be in grey bins
+						if( bin_id >= proc_bins_from[rank + 1]) // must be in grey bins
 						{
 							bin_id = get_local_grey_bin_id_from_global(bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
 							other = local_grey_bins_particles_ph[bin_id].first;
@@ -256,13 +248,12 @@ int main( int argc, char **argv )
 						}
 
 						apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
-
 					}
 
 
 					if(c_bin->bottom != -1) {
 						int bin_id = c_bin->bottom;
-						if( bin_id <= proc_bins_from[rank]) // must be in grey bins
+						if( bin_id <= proc_bins_until[rank - 1]) // must be in grey bins
 						{
 							bin_id = get_local_grey_bin_id_from_global(bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
 							other = local_grey_bins_particles_ph[bin_id].first;
@@ -272,10 +263,9 @@ int main( int argc, char **argv )
 							bin_id = get_local_bin_from_global_bin(bin_id, bins_per_proc);
 							other = local_bins_particles_ph[bin_id].first;
 							//std::cout << "Process " << rank << " local neighbor in " << bin_id << std::endl;
-
 						}
-
 						apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
+
 					}
 
 					if(c_bin->left != -1) { // always in local bin
@@ -294,7 +284,7 @@ int main( int argc, char **argv )
 
 					if(c_bin->top_left != -1) {
 						int bin_id = c_bin->top_left;
-						if( bin_id <= proc_bins_until[rank]) // must be in grey bins
+						if( bin_id >= proc_bins_from[rank + 1]) // must be in grey bins
 						{
 							bin_id = get_local_grey_bin_id_from_global(bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
 							other = local_grey_bins_particles_ph[bin_id].first;
@@ -306,12 +296,12 @@ int main( int argc, char **argv )
 							//std::cout << "Process " << rank << " local neighbor in " << bin_id << std::endl;
 
 						}
-
 						apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
+
 					}
 					if(c_bin->top_right != -1) {
 						int bin_id = c_bin->top_right;
-						if( bin_id <= proc_bins_until[rank]) // must be in grey bins
+						if( bin_id >= proc_bins_from[rank + 1]) // must be in grey bins
 						{
 							bin_id = get_local_grey_bin_id_from_global(bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
 							other = local_grey_bins_particles_ph[bin_id].first;
@@ -321,18 +311,18 @@ int main( int argc, char **argv )
 							bin_id = get_local_bin_from_global_bin(bin_id, bins_per_proc);
 							other = local_bins_particles_ph[bin_id].first;
 							//std::cout << "Process " << rank << " local neighbor in " << bin_id << std::endl;
-
 						}
-
 						apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
+
 					}
 					if(c_bin->bottom_left != -1) {
 						int bin_id = c_bin->bottom_left;
-						if( bin_id <= proc_bins_from[rank]) // must be in grey bins
+						if( bin_id <= proc_bins_until[rank - 1]) // must be in grey bins
 						{
 							bin_id = get_local_grey_bin_id_from_global(bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
 							other = local_grey_bins_particles_ph[bin_id].first;
 							//std::cout << "Process " << rank << " grey neighbor in " << bin_id << std::endl;
+
 
 						}else{ // local bins
 							bin_id = get_local_bin_from_global_bin(bin_id, bins_per_proc);
@@ -340,17 +330,18 @@ int main( int argc, char **argv )
 							//std::cout << "Process " << rank << " local neighbor in " << bin_id << std::endl;
 
 						}
-
 						apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
+
 					}
 
 					if(c_bin->bottom_right != -1) {
 						int bin_id = c_bin->bottom_right;
-						if( bin_id <= proc_bins_from[rank]) // must be in grey bins
+						if( bin_id <= proc_bins_until[rank - 1]) // must be in grey bins
 						{
 							bin_id = get_local_grey_bin_id_from_global(bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
 							other = local_grey_bins_particles_ph[bin_id].first;
 							//std::cout << "Process " << rank << " grey neighbor in " << bin_id << std::endl;
+
 
 						}else{ // local bins
 							bin_id = get_local_bin_from_global_bin(bin_id, bins_per_proc);
@@ -358,8 +349,8 @@ int main( int argc, char **argv )
 							//std::cout << "Process " << rank << " local neighbor in " << bin_id << std::endl;
 
 						}
-
 						apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
+
 					}
 					c_particle = c_particle->next;
 				}
@@ -396,13 +387,12 @@ int main( int argc, char **argv )
 			move( local_particles[i] );
 
 
-		// reset placeholders
-		//reset_particles_placeholders(local_bins_particles_ph, local_nbins);
-
-		// TODO update particles bins
+		// Update particles bins
+		//
 		//show_placeholders(local_bins_particles_ph,local_nbins, bins_per_row);
 		//MPI_Barrier(MPI_COMM_WORLD);
 		//std::cout << "Updating local particles\n";
+		//
 		particle_t* old_local_particles = local_particles;
 		int updated_nlocal = 0;
 		local_particles = send_and_receive_local_particles(old_local_particles, &updated_nlocal, nlocal, n_proc, rank,
@@ -410,14 +400,13 @@ int main( int argc, char **argv )
 
 		free(old_local_particles);
 
-		//local_particles = updated_local_particles;
 		nlocal = updated_nlocal;
 		reset_particles_placeholders(local_bins_particles_ph, local_nbins);
 		assign_local_particles_to_ph(local_particles, local_bins_particles_ph, nlocal, bins_per_proc);
-		//MPI_Barrier(MPI_COMM_WORLD);
 
-		//show_placeholders(local_bins_particles_ph,local_nbins, bins_per_row);
-		// TODO send particles grey area
+
+		//
+		//
 		//MPI_Barrier(MPI_COMM_WORLD);
 		//std::cout << "sending grey particles\n";
 		//
@@ -425,7 +414,6 @@ int main( int argc, char **argv )
 		//
 
 		particle_t* old_local_grey_particles = local_grey_particles;
-		int grey_nlocal = 0;
 		local_grey_particles = send_and_receive_grey_area_particles( &grey_nlocal, n_proc, nlocal, local_particles, bins_per_row,
 		                                                             local_nbins, rank, PARTICLE, proc_bins_from, proc_bins_until);
 		free(old_local_grey_particles);
@@ -439,6 +427,8 @@ int main( int argc, char **argv )
 		assign_local_grey_particles_to_ph(local_grey_particles, local_grey_bins_particles_ph, grey_nlocal, bins_per_row,
 		                                  rank, n_proc,proc_bins_from, proc_bins_until);
 
+		//MPI_Barrier(MPI_COMM_WORLD);
+		//std::cout <<"Process " << rank << " has " << nlocal << " particles\n";
 	}
 
 	simulation_time = read_timer( ) - simulation_time;

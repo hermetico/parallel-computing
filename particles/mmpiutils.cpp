@@ -55,7 +55,7 @@ int get_bin_id(int bins_per_row, double bin_size,  double x, double y){
 	return  bins_per_row * biny + binx;
 }
 
-void pt_copy(particle_t* to, particle_t* from){
+void pt_copy_data(particle_t* to, particle_t* from){
 	to->ax = from->ax;
 	to->ay = from->ay;
 	to->x = from->x;
@@ -65,7 +65,8 @@ void pt_copy(particle_t* to, particle_t* from){
 	to->proc_id = from->proc_id;
 	to->global_bin_id = from->global_bin_id;
 	to->next = NULL;
-	to->next_grey = NULL;
+	to->next_grey_up = NULL;
+	to->next_grey_down = NULL;
 }
 
 int get_proc_from_bin(int bin_id, int bins_per_proc){
@@ -192,6 +193,7 @@ void assign_local_particles_to_ph(particle_t* particles, particle_ph* local_plac
 	for(int i = 0; i < nlocal; i++)
 	{
 		int local_bin = get_local_bin_from_global_bin(particles[i].global_bin_id, bins_per_proc);
+		particles[i].next = local_placeholders[local_bin].first;
 		local_placeholders[local_bin].first = &particles[i];
 		local_placeholders[local_bin].size++;
 	}
@@ -206,7 +208,7 @@ void assign_local_grey_particles_to_ph(particle_t* particles, particle_ph* place
 		int grey_bin_id = get_local_grey_bin_id_from_global(particles[i].global_bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
 
 		//std::cout << " appending it at grey local bin with id " << grey_bin_id << std::endl;
-		particles[i].next_grey = placeholders[grey_bin_id].first;
+		particles[i].next = placeholders[grey_bin_id].first;
 
 		placeholders[grey_bin_id].first = &particles[i];
 		placeholders[grey_bin_id].size++;
@@ -220,12 +222,14 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 	int *proc_bins_until){
 
 
-	particle_ph* grey_send_ph;
+	particle_ph *grey_send_up_ph, *grey_send_down_ph;
 	int *send_counts, *recv_counts, *send_displs, *recv_displs;
 	particle_t* grey_send_buff;
 
-	grey_send_ph  = (particle_ph*) malloc( n_proc * sizeof(particle_ph) );
-	reset_particles_placeholders(grey_send_ph, n_proc);
+	grey_send_up_ph  = (particle_ph*) malloc( n_proc * sizeof(particle_ph) );
+	grey_send_down_ph  = (particle_ph*) malloc( n_proc * sizeof(particle_ph) );
+	reset_particles_placeholders(grey_send_up_ph, n_proc);
+	reset_particles_placeholders(grey_send_down_ph, n_proc);
 
 	send_counts = (int*) malloc(n_proc * sizeof(int));
 	recv_counts = (int*) malloc(n_proc * sizeof(int));
@@ -237,32 +241,34 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 	}
 
 	int total_send_counts = 0;
+	int current = -1;
 	// collect info about data to be sent
 	for(int i = 0; i < nlocal; i++){
 		int bin_id = local_particles[i].global_bin_id;
 		if(rank < n_proc - 1) {
 			// needs to go up?
-			if (bin_id  + bins_per_row >= proc_bins_from[rank + 1] && bin_id + bins_per_row <= proc_bins_until[rank + 1])
-				//if(bin_id + bins_per_row >= local_nbins * (rank + 1) && rank < n_proc - 1)
+			if (bin_id  + bins_per_row >= proc_bins_from[rank + 1])// && bin_id + bins_per_row <= proc_bins_until[rank + 1])
 			{
 				int recv_id = rank + 1;
-				local_particles[i].next_grey = grey_send_ph[recv_id].first;
-				grey_send_ph[recv_id].first = &local_particles[i];
-				grey_send_ph[recv_id].size++;
+				local_particles[i].next_grey_up = grey_send_up_ph[recv_id].first;
+				grey_send_up_ph[recv_id].first = &local_particles[i];
+				grey_send_up_ph[recv_id].size++;
 				send_counts[recv_id]++;
 				total_send_counts++;
 				//std::cout << "Particle at process " << rank << " in bin " << bin_id << " sending it to " <<recv_id <<std::endl;
+				current = i;
 			}
 		}
+		// same particle can go up and down, it happens when processes only have one row of bins
 		if( rank > 0 ) {
 			// needs to go down?
-			if (bin_id - bins_per_row>= proc_bins_from[rank - 1] && bin_id - bins_per_row<= proc_bins_until[rank - 1])
+			if (bin_id - bins_per_row <= proc_bins_until[rank - 1])// && bin_id - bins_per_row<= proc_bins_until[rank - 1])
 				//if(bin_id - bins_per_row < local_nbins * (rank + 1) && rank != 0)
 			{
 				int recv_id = rank - 1;
-				local_particles[i].next_grey = grey_send_ph[recv_id].first;
-				grey_send_ph[recv_id].first = &local_particles[i];
-				grey_send_ph[recv_id].size++;
+				local_particles[i].next_grey_down = grey_send_down_ph[recv_id].first;
+				grey_send_down_ph[recv_id].first = &local_particles[i];
+				grey_send_down_ph[recv_id].size++;
 				send_counts[recv_id]++;
 				total_send_counts++;
 				//std::cout << "Particle at process " << rank << " in bin " << bin_id << " sending it to " << recv_id <<std::endl;
@@ -275,14 +281,20 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 	int pos = 0;
 	for(int i = 0; i< n_proc; i++)
 	{
-		particle_t* c_p = grey_send_ph[i].first;
+		particle_t* c_p = grey_send_up_ph[i].first;
+		// copy particles to send up
+		for (int j = 0; j < grey_send_up_ph[i].size; j++) {
 
-		for (int j = 0; j < grey_send_ph[i].size; j++) {
+			pt_copy_data(&grey_send_buff[pos], c_p);
+			c_p = c_p->next_grey_up;
+			pos++;
+		}
+		c_p = grey_send_down_ph[i].first;
+		// copy particles to send down
+		for (int j = 0; j < grey_send_down_ph[i].size; j++) {
 
-			pt_copy(&grey_send_buff[pos], c_p);
-			grey_send_buff[pos].next_grey = NULL;
-			grey_send_buff[pos].next = NULL;
-			c_p = c_p->next_grey;
+			pt_copy_data(&grey_send_buff[pos], c_p);
+			c_p = c_p->next_grey_down;
 			pos++;
 		}
 
@@ -334,7 +346,8 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 
 	*(buff_length) = total_recv_counts;
 
-	free(grey_send_ph);
+	free(grey_send_down_ph);
+	free(grey_send_up_ph);
 	free(grey_send_buff);
 	free(send_counts);
 	free(recv_counts);
@@ -381,7 +394,7 @@ particle_t* receive_particles(int* buff_length, int n_proc, particle_t* particle
 			while(c_p)
 			{
 				send_counts[(int)c_p->proc_id]++;
-				pt_copy(send_buff + particles_copied, c_p);
+				pt_copy_data(send_buff + particles_copied, c_p);
 				particles_copied++;
 				c_p = c_p->next;
 			}
@@ -555,9 +568,7 @@ particle_t* send_and_receive_local_particles(particle_t* local_particles,int* bu
 		//std::cout << "Process " << rank << " place holder of " <<i << " with size " << proc_placeholders[i].size << std::endl;
 		for (int j = 0; j < proc_placeholders[i].size; j++) {
 			//std::cout << "Process " << rank << " copying" << std::endl;
-			pt_copy(&send_buff[pos], c_p);
-			send_buff[pos].next_grey = NULL;
-			send_buff[pos].next = NULL;
+			pt_copy_data(&send_buff[pos], c_p);
 			c_p = c_p->next;
 			pos++;
 		}
