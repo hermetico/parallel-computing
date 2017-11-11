@@ -100,7 +100,7 @@ int main( int argc, char **argv )
 	// so far, only slicing rows, would be nice to slice in a grid manner
 	// everyone should know the general layout of the problem
 	int total_bins, bins_per_row, bins_per_proc;
-	double bin_size = cutoff;
+	double bin_size = cutoff * 1.7;
 	bins_per_row = ceil(size / bin_size);
 	total_bins = bins_per_row * bins_per_row;
 
@@ -123,6 +123,11 @@ int main( int argc, char **argv )
 	int local_nbins = 0;
 	local_bins = organize_and_send_bins( &local_nbins, n_proc, bins_per_proc, total_bins, rank, bins_per_row, BIN, proc_bins_from, proc_bins_until);
 
+	if(rank == 0){
+		for(int i = 0; i < n_proc; i++){
+			std::cout << "Process " << i << " with bins from " << proc_bins_from[i] << " to " << proc_bins_until[i] << std::endl;
+		}
+	}
 	// knowing the bins we can populate the placeholders, which are the first entry for linked lists
 	// of particles
 	// the first particle to be pointing from the bin
@@ -145,13 +150,20 @@ int main( int argc, char **argv )
 	//
 	particle_t *local_particles;
 	int  nlocal = 0;
-	local_particles = receive_particles(&nlocal, n_proc, particles, total_bins, rank, n, bin_size, bins_per_row,
-	                                    bins_per_proc, PARTICLE);
+
+	if (rank == 0) {
+		local_particles = send_and_receive_local_particles(particles, &nlocal, n, n_proc, rank,
+		                                                   PARTICLE, bins_per_row, bin_size, bins_per_proc);
+	}else{
+		particle_t *dummy_particles = (particle_t*) malloc(0 * sizeof(particle_t));
+		local_particles = send_and_receive_local_particles(dummy_particles, &nlocal, 0, n_proc, rank,
+		                                                   PARTICLE, bins_per_row, bin_size, bins_per_proc);
+		free(dummy_particles);
+	}
 
 
 	// once we have our particles locally, we can assign them to the bins
 	assign_local_particles_to_ph(local_particles, local_bins_particles_ph, nlocal, bins_per_proc);
-
 
 
 	//
@@ -395,12 +407,8 @@ int main( int argc, char **argv )
 		}
 
 
-
-		// Update particles bins
 		//
-		//show_placeholders(local_bins_particles_ph,local_nbins, bins_per_row);
-		//MPI_Barrier(MPI_COMM_WORLD);
-		//std::cout << "Updating local particles\n";
+		// Update particles bins
 		//
 		particle_t* old_local_particles = local_particles;
 		int updated_nlocal = 0;
@@ -415,10 +423,6 @@ int main( int argc, char **argv )
 
 
 		//
-		//
-		//MPI_Barrier(MPI_COMM_WORLD);
-		//std::cout << "sending grey particles\n";
-		//
 		// Distribute grey area particles
 		//
 
@@ -427,8 +431,6 @@ int main( int argc, char **argv )
 		                                                             local_nbins, rank, PARTICLE, proc_bins_from, proc_bins_until);
 		free(old_local_grey_particles);
 
-		//MPI_Barrier(MPI_COMM_WORLD);
-		//std::cout << "grey particles sent\n";
 		// assign local grey particles to grey bins
 		// we can define the place holders for
 
@@ -436,10 +438,8 @@ int main( int argc, char **argv )
 		assign_local_grey_particles_to_ph(local_grey_particles, local_grey_bins_particles_ph, grey_nlocal, bins_per_row,
 		                                  rank, n_proc,proc_bins_from, proc_bins_until);
 
-		//MPI_Barrier(MPI_COMM_WORLD);
-		//std::cout <<"Process " << rank << " has " << nlocal << " particles\n";
 	}
-	//show_placeholders(local_bins_particles_ph,local_nbins, bins_per_row);
+
 	simulation_time = read_timer( ) - simulation_time;
   
 	if (rank == 0) {  

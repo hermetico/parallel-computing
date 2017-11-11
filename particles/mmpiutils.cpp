@@ -16,8 +16,7 @@
 
 
 typedef struct bin_t bin_t;
-struct bin_t
-{
+struct bin_t{
 	// neighbor bins
 	int top;
 	int bottom;
@@ -33,14 +32,12 @@ struct bin_t
 
 // particles placeholder
 typedef struct particle_ph particle_ph;
-struct particle_ph
-{
+struct particle_ph{
 	particle_t* first;
 	int size;
 };
 
-void apply_forces_linked_particles(particle_t* a_particle, particle_t* b_particle, double* dmin, double* davg,  int* navg)
-{
+void apply_forces_linked_particles(particle_t* a_particle, particle_t* b_particle, double* dmin, double* davg,  int* navg){
 	//int count = 0;
 	while(b_particle)
 	{
@@ -193,19 +190,6 @@ void show_bins(bin_t* bins, int num_bins, int bins_per_row){
 	std::cout << std::endl;
 }
 
-void assign_particles_to_ph(particle_t* particles, particle_ph* particle_ph, int n, int bins_per_row, int bins_per_proc, double bin_size){
-	for (int i = 0; i < n; i++) {
-		int global_bin_id = get_bin_id(bins_per_row, bin_size, particles[i].x, particles[i].y);
-		particles[i].next = particle_ph[global_bin_id].first;
-		particles[i].global_bin_id = (double) global_bin_id;
-		particles[i].proc_id = (double) get_proc_from_bin(global_bin_id, bins_per_proc);
-		//std::cout << "A particle for proc " << particles[i].proc_id << std::endl;
-		particle_ph[global_bin_id].first = &particles[i];
-		particle_ph[global_bin_id].size++;
-
-	}
-}
-
 void assign_local_particles_to_ph(particle_t* particles, particle_ph* local_placeholders,  int nlocal, int bins_per_proc){
 	for(int i = 0; i < nlocal; i++)
 	{
@@ -218,8 +202,7 @@ void assign_local_particles_to_ph(particle_t* particles, particle_ph* local_plac
 }
 
 void assign_local_grey_particles_to_ph(particle_t* particles, particle_ph* placeholders, int grey_nlocal,
-     int bins_per_row, int rank, int n_proc, int* proc_bins_from, int* proc_bins_until )
-{
+     int bins_per_row, int rank, int n_proc, int* proc_bins_from, int* proc_bins_until ){
 	//std::cout << "Process " << rank << " with " << grey_nlocal << std::endl;
 	for(int i = 0; i < grey_nlocal; i++) {
 		//std::cout << "Global id " << particles[i].global_bin_id << " on rank " << rank;
@@ -234,9 +217,8 @@ void assign_local_grey_particles_to_ph(particle_t* particles, particle_ph* place
 }
 
 // populates buff_length
-particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, int nlocal,
-	particle_t* local_particles, int bins_per_row, int local_nbins, int rank, MPI_Datatype PARTICLE, int *proc_bins_from,
-	int *proc_bins_until){
+particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, int nlocal, particle_t* local_particles,
+	int bins_per_row, int local_nbins, int rank, MPI_Datatype PARTICLE, int *proc_bins_from, int *proc_bins_until){
 
 
 	particle_ph *grey_send_up_ph, *grey_send_down_ph;
@@ -263,7 +245,7 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 		int bin_id = local_particles[i].global_bin_id;
 		if(rank < n_proc - 1) {
 			// needs to go up?
-			if (bin_id  + bins_per_row  >= proc_bins_from[rank + 1])// && bin_id + bins_per_row <= proc_bins_until[rank + 1])
+			if (bin_id  + bins_per_row  >= proc_bins_from[rank + 1])
 			{
 				int recv_id = rank + 1;
 				local_particles[i].next_grey_up = grey_send_up_ph[recv_id].first;
@@ -277,8 +259,7 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 		// same particle can go up and down, it happens when processes only have one row of bins
 		if( rank > 0 ) {
 			// needs to go down?
-			if (bin_id - (bins_per_row * 2) <= proc_bins_until[rank - 1])// && bin_id - bins_per_row<= proc_bins_until[rank - 1])
-				//if(bin_id - bins_per_row < local_nbins * (rank + 1) && rank != 0)
+			if (bin_id - bins_per_row  <= proc_bins_until[rank - 1])
 			{
 				int recv_id = rank - 1;
 				local_particles[i].next_grey_down = grey_send_down_ph[recv_id].first;
@@ -304,8 +285,8 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 			c_p = c_p->next_grey_up;
 			pos++;
 		}
-		c_p = grey_send_down_ph[i].first;
 		// copy particles to send down
+		c_p = grey_send_down_ph[i].first;
 		for (int j = 0; j < grey_send_down_ph[i].size; j++) {
 
 			pt_copy_data(&grey_send_buff[pos], c_p);
@@ -373,81 +354,6 @@ particle_t* send_and_receive_grey_area_particles( int* buff_length, int n_proc, 
 
 }
 
-particle_t* receive_particles(int* buff_length, int n_proc, particle_t* particles, int total_bins, int rank, int n,
-	double bin_size, int bins_per_row, int bins_per_proc, MPI_Datatype PARTICLE){
-
-	particle_ph* total_bins_particles_ph;
-	particle_t *send_buff, *recv_buff ;
-	int *send_displs, *send_counts;
-	int recv_count;
-
-	if(rank == 0) // global bins setup from process 0
-	{
-		total_bins_particles_ph = (particle_ph *) malloc(total_bins * sizeof(particle_ph));
-		reset_particles_placeholders(total_bins_particles_ph, total_bins);
-		// assign particles to bins
-		assign_particles_to_ph(particles, total_bins_particles_ph, n, bins_per_row, bins_per_proc, bin_size);
-
-
-		if (VERBOSE_LEVEL > PARTICLES_LEVEL || VERBOSE_LEVEL == UPDATING_PARTICLES_LEVEL) {
-			show_placeholders(total_bins_particles_ph, total_bins, bins_per_row);
-			//for (int i = 0; i < total_bins; i++) {
-			//	std::cout << "Bin " << i << " with " << total_bins_particles_ph[i].size << std::endl;
-			//}
-		}
-		send_displs = (int*) malloc( (n_proc+1) * sizeof(int) );
-		send_displs[0] = 0;
-
-		send_counts = (int*) malloc( n_proc * sizeof(int) );
-		for(int i = 0; i< n_proc;i++)
-			send_counts[i] = 0;
-
-		send_buff  = (particle_t*) malloc( n * sizeof(particle_t) );
-		int particles_copied = 0;
-		for (int i = 0; i < total_bins; i++) {
-			particle_t* c_p = total_bins_particles_ph[i].first;
-			while(c_p)
-			{
-				send_counts[(int)c_p->proc_id]++;
-				pt_copy_data(send_buff + particles_copied, c_p);
-				particles_copied++;
-				c_p = c_p->next;
-			}
-		}
-		for(int i = 1; i< n_proc+1;i++) {
-			send_displs[i] = send_displs[i - 1] + send_counts[i - 1];
-
-		}
-		if(VERBOSE_LEVEL == PARTICLES_LEVEL){
-			for(int i = 0; i< n_proc;i++) {
-				std::cout << "Size at " << i << " = " << send_counts[i] << std::endl;
-				std::cout << "Offset at " << i << " = " << send_displs[i] << std::endl;
-			}
-		}
-	}
-	// let know to other process the number of particles to receive
-	MPI_Scatter(send_counts, 1, MPI_INT, &recv_count, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-	recv_buff = (particle_t*) malloc( recv_count * sizeof(particle_t) );
-
-	MPI_Scatterv(send_buff, send_counts, send_displs, PARTICLE, recv_buff, recv_count, PARTICLE, 0, MPI_COMM_WORLD);
-
-	*(buff_length) = recv_count;
-	if(VERBOSE_LEVEL == PARTICLES_LEVEL){
-		MPI_Barrier(MPI_COMM_WORLD);
-		std::cout << "Process " << rank << " with " << *(buff_length) << " particles " << std::endl;
-		for(int i = 0; i < *(buff_length); i++){
-			std::cout << "Received particle for process " << recv_buff[i].proc_id << " for bin " << recv_buff[i].global_bin_id << std::endl;
-		}
-	}
-	if(rank == 0){
-		free(total_bins_particles_ph);
-		free(send_buff);
-		free(send_displs);
-		free(send_counts);
-	}
-	return recv_buff;
-}
 
 // populates buff_length, proc_bins_from, proc_bins_until
 bin_t* organize_and_send_bins( int* buff_length, int n_proc, int bins_per_proc, int total_bins, int rank,
@@ -539,6 +445,7 @@ bin_t* organize_and_send_bins( int* buff_length, int n_proc, int bins_per_proc, 
 }
 
 
+// populates buff_length
 particle_t* send_and_receive_local_particles(particle_t* local_particles,int* buff_length,  int nlocal,  int n_proc,
 	int rank,MPI_Datatype PARTICLE, int bins_per_row, double bin_size, int bins_per_proc){
 
@@ -649,5 +556,7 @@ particle_t* send_and_receive_local_particles(particle_t* local_particles,int* bu
 
 	return recv_buff;
 }
+
+
 #endif
 
