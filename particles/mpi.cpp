@@ -111,8 +111,6 @@ int main( int argc, char **argv )
 		bins_per_proc += (bins_per_row - (bins_per_proc % bins_per_row));
 	}
 
-	//MPI_Barrier(MPI_COMM_WORLD);
-	//std::cout << "receive bins\n";
 	//
 	//
 	//Populate and distribute bins, (work for process 0)
@@ -124,20 +122,13 @@ int main( int argc, char **argv )
 	bin_t* local_bins;
 	int local_nbins = 0;
 	local_bins = organize_and_send_bins( &local_nbins, n_proc, bins_per_proc, total_bins, rank, bins_per_row, BIN, proc_bins_from, proc_bins_until);
+
 	// knowing the bins we can populate the placeholders, which are the first entry for linked lists
 	// of particles
 	// the first particle to be pointing from the bin
-
 	particle_ph* local_bins_particles_ph = (particle_ph*) malloc(local_nbins * sizeof(particle_ph));
 	reset_particles_placeholders(local_bins_particles_ph, local_nbins);
 
-	//std::cout << "Process " << rank << std::endl;
-	//for(int i = 0; i < n_proc; i++){
-	//	std::cout << "Process " << i << " begins at " << proc_bins_from[i] << std::endl;
-	//	std::cout << "Process " << i << " ends at " << proc_bins_until[i] << std::endl;
-	//}
-	//MPI_Barrier(MPI_COMM_WORLD);
-	//std::cout << "bins received\n";
 
 	// Also, knowing the number of bins we can also define the
 	// outter bins ( the ones in the grey area ) and populate them
@@ -148,8 +139,7 @@ int main( int argc, char **argv )
 	if(rank > 0 && rank < n_proc -1)// && local_nbins > local_ngrey_bins)
 		local_ngrey_bins *= 2;
 
-	//MPI_Barrier(MPI_COMM_WORLD);
-	//std::cout << "receive particles\n";
+
 	//
 	// Distribute particles across the bins
 	//
@@ -158,18 +148,12 @@ int main( int argc, char **argv )
 	local_particles = receive_particles(&nlocal, n_proc, particles, total_bins, rank, n, bin_size, bins_per_row,
 	                                    bins_per_proc, PARTICLE);
 
-	//MPI_Barrier(MPI_COMM_WORLD);
-	//std::cout << "particles received\n";
+
 	// once we have our particles locally, we can assign them to the bins
 	assign_local_particles_to_ph(local_particles, local_bins_particles_ph, nlocal, bins_per_proc);
 
 
-	//MPI_Barrier(MPI_COMM_WORLD);
-	//std::cout << "particles assigned to placeholders\n";
 
-
-	//MPI_Barrier(MPI_COMM_WORLD);
-	//std::cout << "sending grey particles\n";
 	//
 	// Distribute grey area particles
 	//
@@ -178,8 +162,6 @@ int main( int argc, char **argv )
 	local_grey_particles = send_and_receive_grey_area_particles( &grey_nlocal, n_proc, nlocal, local_particles, bins_per_row,
 	                                                             local_nbins, rank, PARTICLE, proc_bins_from, proc_bins_until);
 
-	//MPI_Barrier(MPI_COMM_WORLD);
-	//std::cout << "grey particles sent\n";
 	// assign local grey particles to grey bins
 	// we can define the place holders for
 	particle_ph* local_grey_bins_particles_ph = (particle_ph*) malloc(local_ngrey_bins * sizeof(particle_ph));
@@ -201,17 +183,17 @@ int main( int argc, char **argv )
 
 
 
-		int* counts = (int*) malloc(n_proc * sizeof(int));
-		int* displs = (int*) malloc(n_proc * sizeof(int));
+		int* vis_counts = (int*) malloc(n_proc * sizeof(int));
+		int* vis_displs = (int*) malloc(n_proc * sizeof(int));
 
-		MPI_Gather(&nlocal, 1, MPI_INT, counts, 1, MPI_INT, 0, MPI_COMM_WORLD);
-		displs[0] = 0;
+		MPI_Gather(&nlocal, 1, MPI_INT, vis_counts, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		vis_displs[0] = 0;
 		for(int i = 1; i< n_proc; i++)
 		{
-			displs[i] = displs[i-1] + counts[i-1];
+			vis_displs[i] = vis_displs[i-1] + vis_counts[i-1];
 		}
 
-		MPI_Gatherv(local_particles, nlocal, PARTICLE, particles, counts, displs, PARTICLE,0,  MPI_COMM_WORLD);
+		MPI_Gatherv(local_particles, nlocal, PARTICLE, particles, vis_counts, vis_displs, PARTICLE,0,  MPI_COMM_WORLD);
 		//
 		//  save current step if necessary (slightly different semantics than in other codes)
 		//
@@ -220,6 +202,8 @@ int main( int argc, char **argv )
 			  //MPI_gather( local_particles, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
 			  save(fsave, n, particles);
 		  }
+		free(vis_counts);
+		free(vis_displs);
 		//
 		//
 		//  compute all forces

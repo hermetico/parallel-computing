@@ -60,8 +60,8 @@ int get_bin_id(int bins_per_row, double bin_size,  double x, double y){
 }
 
 void pt_copy_data(particle_t* to, particle_t* from){
-	to->ax = from->ax;
-	to->ay = from->ay;
+	to->ax = 0.0;
+	to->ay = 0.0;
 	to->x = from->x;
 	to->y = from->y;
 	to->vx = from->vx;
