@@ -21,5 +21,5 @@ include_directories(${MPI_INCLUDE_PATH})
 SET(CMAKE_C_COMPILER mpic++)
 SET(CMAKE_CXX_COMPILER mpicxx)
 
-set(SOURCE_FILES mpi.cpp common.cpp)
+set(SOURCE_FILES mpi.cpp common.cpp mmpiutils.cpp)
 add_executable(mpi ${SOURCE_FILES})
