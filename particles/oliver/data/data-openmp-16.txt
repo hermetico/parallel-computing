@@ -1,0 +1,12 @@
+n = 16, simulation time = 0.061324 seconds
+n = 32, simulation time = 0.014737 seconds
+n = 64, simulation time = 0.015413 seconds
+n = 128, simulation time = 0.016979 seconds
+n = 256, simulation time = 0.021645 seconds
+n = 512, simulation time = 0.026187 seconds
+n = 1024, simulation time = 0.036486 seconds
+n = 2048, simulation time = 0.092493 seconds
+n = 4096, simulation time = 0.098535 seconds
+n = 8192, simulation time = 0.217816 seconds
+n = 16384, simulation time = 0.391589 seconds
+n = 32768, simulation time = 0.85845 seconds
