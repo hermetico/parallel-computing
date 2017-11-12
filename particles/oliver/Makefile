@@ -3,11 +3,11 @@
 #
 # Intel Compilers are loaded by default; for other compilers please check the module list
 #
-CC = g++
-MPCC = mpic++
-OPENMP = -fopenmp
+CC = CC
+MPCC = CC
+OPENMP = -openmp #Note: this is the flag for Intel compilers. Change this to -fopenmp for GNU compilers. See http://www.nersc.gov/users/computational-systems/edison/programming/using-openmp/
 CFLAGS = -O3
-LIBS = -lm
+LIBS =
 
 
 TARGETS = serial openmp mpi autograder
@@ -15,13 +15,13 @@ TARGETS = serial openmp mpi autograder
 all:	$(TARGETS)
 
 serial: serial.o common.o
-	$(CC) -o $@  serial.o common.o $(LIBS)
+	$(CC) -o $@ $(LIBS) serial.o common.o
 autograder: autograder.o common.o
-	$(CC) -o $@ autograder.o common.o $(LIBS)
+	$(CC) -o $@ $(LIBS) autograder.o common.o
 openmp: openmp.o common.o
-	$(CC) -o $@ $(OPENMP) openmp.o common.o $(LIBS)
+	$(CC) -o $@ $(LIBS) $(OPENMP) openmp.o common.o
 mpi: mpi.o common.o
-	$(MPCC) -o $@ $(MPILIBS) mpi.o common.o $(LIBS)
+	$(MPCC) -o $@ $(LIBS) $(MPILIBS) mpi.o common.o
 
 autograder.o: autograder.cpp common.h
 	$(CC) -c $(CFLAGS) autograder.cpp
@@ -35,4 +35,5 @@ common.o: common.cpp common.h
 	$(CC) -c $(CFLAGS) common.cpp
 
 clean:
-	rm -f *.o $(TARGETS) *.stdout *.out
+	rm -f *.o $(TARGETS) *.stdout *.txt
+
