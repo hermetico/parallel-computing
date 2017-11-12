@@ -193,6 +193,7 @@ int main( int argc, char **argv )
 		dmin = 1.0;
 		davg = 0.0;
 
+		/*
 
 		int* vis_counts = (int*) malloc(n_proc * sizeof(int));
 		int* vis_displs = (int*) malloc(n_proc * sizeof(int));
@@ -215,6 +216,7 @@ int main( int argc, char **argv )
 		  }
 		free(vis_counts);
 		free(vis_displs);
+		 */
 		//
 		//
 		//  compute all forces
