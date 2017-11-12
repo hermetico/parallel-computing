@@ -260,7 +260,8 @@ int main( int argc, char **argv )
 }
 	simulation_time = read_timer( ) - simulation_time;
 	
-	printf( "n = %d,threads = %d, simulation time = %g seconds", n,numthreads, simulation_time);
+	//printf( "n = %d,threads = %d, simulation time = %g seconds", n,numthreads, simulation_time);
+	printf( "%d\t%g", n, simulation_time);
 
 	if( find_option( argc, argv, "-no" ) == -1 )
 	{

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+MAX=50000
+
+NAME=data-openmp.txt
+rm $NAME
+
+N=2
+while [  $N -lt $MAX ]; do
+ ./serial -n $N -no >> $NAME
+ let N=N*2
+done
+
+
+

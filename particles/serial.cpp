@@ -229,8 +229,10 @@ int main( int argc, char **argv )
 			bins[y].first = NULL;
 	}
 	simulation_time = read_timer( ) - simulation_time;
-	
-	printf( "n = %d, simulation time = %g seconds", n, simulation_time);
+
+	//printf( "n = %d, simulation time = %g seconds", n, simulation_time);
+	printf( "%d\t%g", n, simulation_time);
+
 
 	if( find_option( argc, argv, "-no" ) == -1 )
 	{

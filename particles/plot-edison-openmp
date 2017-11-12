@@ -1,0 +1,72 @@
+#!/bin/bash -l
+
+#SBATCH -t 00:20:00					# adjust the amount of time as necessary
+#SBATCH -o auto-openmp24.%j.stdout
+#SBATCH -e auto-openmp24.%j.error
+#SBATCH -N 1						# you'll never need more than 1 node 
+
+MAX=20000
+
+NAME=data-openmp.txt
+rm $NAME
+
+N=16
+export OMP_NUM_THREADS=1
+while [  $N -lt $MAX ]; do
+ srun -n 1 -c 1 ./openmp -p 1 -n $N -no >> $NAME
+ let N=N*2
+done
+
+NAME=data-openmp-2.txt
+rm $NAME
+N=16
+export OMP_NUM_THREADS=2
+while [  $N -lt $MAX ]; do
+ srun -n 1 -c 1 ./openmp -p 2 -n $N -no >> $NAME
+ let N=N*2
+done
+
+NAME=data-openmp-4.txt
+rm $NAME
+N=16
+export OMP_NUM_THREADS=4
+while [  $N -lt $MAX ]; do
+ srun -n 1 -c 1 ./openmp -p 4 -n $N -no >> $NAME
+ let N=N*2
+done
+
+NAME=data-openmp-6.txt
+rm $NAME
+N=16
+export OMP_NUM_THREADS=6
+while [  $N -lt $MAX ]; do
+ srun -n 1 -c 1 ./openmp -p 6 -n $N -no >> $NAME
+ let N=N*2
+done
+
+NAME=data-openmp-12.txt
+rm $NAME
+N=16
+export OMP_NUM_THREADS=12
+while [  $N -lt $MAX ]; do
+ srun -n 1 -c 1 ./openmp -p 12 -n $N -no >> $NAME
+ let N=N*2
+done
+
+NAME=data-openmp-16.txt
+rm $NAME
+N=16
+export OMP_NUM_THREADS=16
+while [  $N -lt $MAX ]; do
+ srun -n 1 -c 1 ./openmp -p 16 -n $N -no >> $NAME
+ let N=N*2
+done
+
+NAME=data-openmp-24.txt
+rm $NAME
+N=16
+export OMP_NUM_THREADS=24
+while [  $N -lt $MAX ]; do
+ srun -n 1 -c 1 ./openmp -p 24 -n $N -no >> $NAME
+ let N=N*2
+done

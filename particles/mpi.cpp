@@ -185,6 +185,8 @@ int main( int argc, char **argv )
 	//
 	//  simulate a number of time steps
 	//
+	int* vis_counts = (int*) malloc(n_proc * sizeof(int));
+	int* vis_displs = (int*) malloc(n_proc * sizeof(int));
 
 	double simulation_time = read_timer( );
 	for( int step = 0; step < NSTEPS; step++ )
@@ -193,10 +195,12 @@ int main( int argc, char **argv )
 		dmin = 1.0;
 		davg = 0.0;
 
-		/*
 
-		int* vis_counts = (int*) malloc(n_proc * sizeof(int));
-		int* vis_displs = (int*) malloc(n_proc * sizeof(int));
+		//
+		// For visualization
+		//
+
+
 
 		MPI_Gather(&nlocal, 1, MPI_INT, vis_counts, 1, MPI_INT, 0, MPI_COMM_WORLD);
 		vis_displs[0] = 0;
@@ -214,9 +218,8 @@ int main( int argc, char **argv )
 			  //MPI_gather( local_particles, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
 			  save(fsave, n, particles);
 		  }
-		free(vis_counts);
-		free(vis_displs);
-		 */
+
+
 		//
 		//
 		//  compute all forces
@@ -441,8 +444,9 @@ int main( int argc, char **argv )
 
 	simulation_time = read_timer( ) - simulation_time;
   
-	if (rank == 0) {  
-	  printf( "n = %d, simulation time = %g seconds", n, simulation_time);
+	if (rank == 0) {
+		//printf( "n = %d, simulation time = %g seconds", n, simulation_time);
+		printf( "%d\t%g", n, simulation_time);
 
 	  if( find_option( argc, argv, "-no" ) == -1 )
 	  {
@@ -486,6 +490,9 @@ int main( int argc, char **argv )
 
 	free( local_bins_particles_ph);
 	free( local_grey_bins_particles_ph);
+
+	free(vis_counts);
+	free(vis_displs);
 
 	if (rank == 0) {
 		free(particles);

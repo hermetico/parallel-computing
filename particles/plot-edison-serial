@@ -1,0 +1,16 @@
+#!/bin/bash -l
+
+#SBATCH -t 00:20:00					# adjust the amount of time as necessary
+#SBATCH -o auto-serial.%j.stdout
+#SBATCH -e auto-serial.%j.error
+#SBATCH -N 1						# you'll never need more than 1 node for the serial code
+
+rm data-serial.txt
+MAX=20000
+N=2
+while [  $N -lt $MAX ]; do
+ srun -n 1 -c 1 ./serial -n $N -no >> data-serial.txt
+ let N=N*2
+done
+
+

@@ -1,0 +1,12 @@
+#!/bin/bash
+
+rm data-serial.txt
+
+N=2
+while [  $N -lt 50000 ]; do
+ ./serial -n $N -no >> data-serial.txt
+ let N=N*2
+done
+
+
+

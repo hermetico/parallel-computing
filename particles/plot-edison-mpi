@@ -1,0 +1,86 @@
+#!/bin/bash -l
+
+#SBATCH -t 00:20:00				# adjust the amount of time as necessary
+#SBATCH -N 24					# adjust the number of nodes per test (e.g. start with 1, 2, ...)
+#SBATCH -o auto-mpi24.%j.stdout
+#SBATCH -e auto-mpi24.%j.error
+
+MAX=20000
+
+NAME=data-mpi.txt
+rm $NAME
+
+N=16
+
+while [  $N -lt $MAX ]; do
+ srun -n 1 -N 1 ./mpi -p 1 -n $N -no >> $NAME
+ let N=N*2
+done
+
+
+
+NAME=data-mpi-2.txt
+rm $NAME
+
+N=16
+
+while [  $N -lt $MAX ]; do
+ srun -n 2 -N 2 ./mpi -p 2 -n $N -no >> $NAME
+ let N=N*2
+done
+
+
+NAME=data-mpi-4.txt
+rm $NAME
+
+N=16
+
+while [  $N -lt $MAX ]; do
+ srun -n 4 -N 4 ./mpi -p 4 -n $N -no >> $NAME
+ let N=N*2
+done
+
+
+NAME=data-mpi-6.txt
+rm $NAME
+
+N=16
+
+while [  $N -lt $MAX ]; do
+ srun -n 6 -N 6 ./mpi -p 6 -n $N -no >> $NAME
+ let N=N*2
+done
+
+
+NAME=data-mpi-12.txt
+rm $NAME
+
+N=16
+
+while [  $N -lt $MAX ]; do
+ srun -n 12 -N 12 ./mpi -p 12 -n $N -no >> $NAME
+ let N=N*2
+done
+
+
+NAME=data-mpi-18.txt
+rm $NAME
+
+N=16
+
+while [  $N -lt $MAX ]; do
+ srun -n 18 -N 18 ./mpi -p 18 -n $N -no >> $NAME
+ let N=N*2
+done
+
+
+NAME=data-mpi-24.txt
+rm $NAME
+
+N=16
+
+while [  $N -lt $MAX ]; do
+ srun -n 24 -N 24 ./mpi -p 24 -n $N -no >> $NAME
+ let N=N*2
+done
+
