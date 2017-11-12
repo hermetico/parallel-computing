@@ -81,9 +81,9 @@ int get_local_bin_from_global_bin(int bin_id, int bins_per_proc){
 int get_local_grey_bin_id_from_global(int global_id, int rank, int n_proc,  int bins_per_row,int* proc_bins_from, int* proc_bins_until ){
 
 	int grey_bin_id = global_id % bins_per_row;
-	if( rank < n_proc - 1 && rank > 0) // comes from above?
+	if( rank < (n_proc - 1) && rank > 0) // comes from above?
 	{
-		if( global_id >= proc_bins_from[rank + 1]){
+		if( global_id > proc_bins_until[rank]){
 			grey_bin_id += bins_per_row;
 			//std::cout << " (right half) ";
 		}
@@ -392,7 +392,7 @@ bin_t* organize_and_send_bins( int* buff_length, int n_proc, int bins_per_proc, 
 
 		for(int i = 0; i < n_proc; i++){
 			proc_bins_from[i] = bins_offsets[i];
-			proc_bins_until[i] = proc_bins_from[i] + bins_per_proc_sizes[i];
+			proc_bins_until[i] = proc_bins_from[i] + bins_per_proc_sizes[i] -1;
 		}
 
 		global_bins = (bin_t*) malloc( total_bins * sizeof(bin_t));

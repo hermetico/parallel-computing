@@ -100,7 +100,7 @@ int main( int argc, char **argv )
 	// so far, only slicing rows, would be nice to slice in a grid manner
 	// everyone should know the general layout of the problem
 	int total_bins, bins_per_row, bins_per_proc;
-	double bin_size = cutoff * 1.7;
+	double bin_size = cutoff * 1.5;
 	bins_per_row = ceil(size / bin_size);
 	total_bins = bins_per_row * bins_per_row;
 
@@ -123,11 +123,13 @@ int main( int argc, char **argv )
 	int local_nbins = 0;
 	local_bins = organize_and_send_bins( &local_nbins, n_proc, bins_per_proc, total_bins, rank, bins_per_row, BIN, proc_bins_from, proc_bins_until);
 
+	/*
 	if(rank == 0){
 		for(int i = 0; i < n_proc; i++){
 			std::cout << "Process " << i << " with bins from " << proc_bins_from[i] << " to " << proc_bins_until[i] << std::endl;
 		}
 	}
+	 */
 	// knowing the bins we can populate the placeholders, which are the first entry for linked lists
 	// of particles
 	// the first particle to be pointing from the bin
@@ -143,7 +145,6 @@ int main( int argc, char **argv )
 	// for those with double grey bins: bottom outter bins will be on the left half, top outter bins on the right half
 	if(rank > 0 && rank < n_proc -1)// && local_nbins > local_ngrey_bins)
 		local_ngrey_bins *= 2;
-
 
 	//
 	// Distribute particles across the bins
@@ -164,7 +165,6 @@ int main( int argc, char **argv )
 
 	// once we have our particles locally, we can assign them to the bins
 	assign_local_particles_to_ph(local_particles, local_bins_particles_ph, nlocal, bins_per_proc);
-
 
 	//
 	// Distribute grey area particles
@@ -192,7 +192,6 @@ int main( int argc, char **argv )
 		navg = 0;
 		dmin = 1.0;
 		davg = 0.0;
-
 
 
 		int* vis_counts = (int*) malloc(n_proc * sizeof(int));
@@ -244,7 +243,8 @@ int main( int argc, char **argv )
 				if(c_bin->top != -1){
 					//std::cout << "Process " << rank << " local bin " << y << std::endl;
 					int bin_id = c_bin->top;
-					if( bin_id >= proc_bins_from[rank + 1]) // must be in grey bins
+
+					if( bin_id > proc_bins_until[rank]) // must be in grey bins
 					{
 						bin_id = get_local_grey_bin_id_from_global(bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
 						other = local_grey_bins_particles_ph[bin_id].first;
@@ -263,7 +263,7 @@ int main( int argc, char **argv )
 
 				if(c_bin->bottom != -1) {
 					int bin_id = c_bin->bottom;
-					if( bin_id <= proc_bins_until[rank - 1]) // must be in grey bins
+					if( bin_id < proc_bins_from[rank]) // must be in grey bins
 					{
 						bin_id = get_local_grey_bin_id_from_global(bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
 						other = local_grey_bins_particles_ph[bin_id].first;
@@ -299,7 +299,7 @@ int main( int argc, char **argv )
 
 				if(c_bin->top_left != -1) {
 					int bin_id = c_bin->top_left;
-					if( bin_id >= proc_bins_from[rank + 1]) // must be in grey bins
+					if( bin_id > proc_bins_until[rank]) // must be in grey bins
 					{
 						bin_id = get_local_grey_bin_id_from_global(bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
 						other = local_grey_bins_particles_ph[bin_id].first;
@@ -317,7 +317,7 @@ int main( int argc, char **argv )
 				}
 				if(c_bin->top_right != -1) {
 					int bin_id = c_bin->top_right;
-					if( bin_id >= proc_bins_from[rank + 1]) // must be in grey bins
+					if( bin_id > proc_bins_until[rank]) // must be in grey bins
 					{
 						bin_id = get_local_grey_bin_id_from_global(bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
 						other = local_grey_bins_particles_ph[bin_id].first;
@@ -334,7 +334,7 @@ int main( int argc, char **argv )
 				}
 				if(c_bin->bottom_left != -1) {
 					int bin_id = c_bin->bottom_left;
-					if( bin_id <= proc_bins_until[rank - 1]) // must be in grey bins
+					if( bin_id < proc_bins_from[rank]) // must be in grey bins
 					{
 						bin_id = get_local_grey_bin_id_from_global(bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
 						other = local_grey_bins_particles_ph[bin_id].first;
@@ -351,10 +351,9 @@ int main( int argc, char **argv )
 					apply_forces_linked_particles(c_particle, other, &dmin, &davg, &navg);
 
 				}
-
 				if(c_bin->bottom_right != -1) {
 					int bin_id = c_bin->bottom_right;
-					if( bin_id <= proc_bins_until[rank - 1]) // must be in grey bins
+					if( bin_id < proc_bins_from[rank]) // must be in grey bins
 					{
 						bin_id = get_local_grey_bin_id_from_global(bin_id, rank, n_proc, bins_per_row, proc_bins_from, proc_bins_until);
 						other = local_grey_bins_particles_ph[bin_id].first;
@@ -377,7 +376,6 @@ int main( int argc, char **argv )
 
 		}
 
-
 		//
 		//  move particles
 		//
@@ -385,7 +383,6 @@ int main( int argc, char **argv )
 			move( local_particles[i] );
 
 
-	 
 		if( find_option( argc, argv, "-no" ) == -1 )
 		{
 
