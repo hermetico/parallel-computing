@@ -5,7 +5,7 @@
 #SBATCH -o auto-mpi24.%j.stdout
 #SBATCH -e auto-mpi24.%j.error
 
-MAX=20000
+MAX=50000
 
 NAME=data-mpi.txt
 rm $NAME

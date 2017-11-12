@@ -6,8 +6,8 @@
 #SBATCH -N 1						# you'll never need more than 1 node for the serial code
 
 rm data-serial.txt
-MAX=20000
-N=2
+MAX=50000
+N=16
 while [  $N -lt $MAX ]; do
  srun -n 1 -c 1 ./serial -n $N -no >> data-serial.txt
  let N=N*2

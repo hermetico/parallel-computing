@@ -5,7 +5,7 @@
 #SBATCH -e auto-openmp24.%j.error
 #SBATCH -N 1						# you'll never need more than 1 node 
 
-MAX=20000
+MAX=50000
 
 NAME=data-openmp.txt
 rm $NAME

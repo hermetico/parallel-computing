@@ -36,4 +36,3 @@ common.o: common.cpp common.h
 
 clean:
 	rm -f *.o $(TARGETS) *.stdout *.txt
-

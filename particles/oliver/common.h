@@ -17,6 +17,7 @@ typedef struct particle_t
   double vy;
   double ax;
   double ay;
+  struct particle_t* next;
 } particle_t;
 
 //  timing routines
