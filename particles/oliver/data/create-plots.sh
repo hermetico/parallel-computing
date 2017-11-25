@@ -12,6 +12,19 @@ set key left top
 plot "data-serial.txt" using (log(\$1)/log(2)):(log(\$2)/log(2)) title "Serial implementation"
 GPLOT
 
+PLOT=serial-both.eps
+
+gnuplot << GPLOT
+set terminal postscript eps enhanced color
+set xlabel "log(n)"
+set ylabel "log(seconds)"
+set output "$PLOT"
+set key left top
+
+plot "data-serial.txt" using (log(\$1)/log(2)):(log(\$2)/log(2)) title "Serial first implementation", \
+    "../../data/data-serial.txt" using (log(\$1)/log(2)):(log(\$2)/log(2)) title "Serial second implementation",
+GPLOT
+
 PLOT=openmp.eps
 
 gnuplot << GPLOT
