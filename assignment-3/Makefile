@@ -3,7 +3,11 @@
 # For other machines, replace CC = cc with
 # mpicc or other appropriate compiler
 
-CC = cc
+
+CC = mpicc # mpich compiler on laptop
+
+
+#CC = cc
 CFLAGS = -O3
 LIBS = 
 

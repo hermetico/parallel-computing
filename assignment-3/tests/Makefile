@@ -1,5 +1,5 @@
 CC = g++
-MPICC = mpic++
+MPICC = mpicc
 TARGETS = virtual_topo
 
 all: ${TARGETS}
