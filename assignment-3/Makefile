@@ -8,7 +8,7 @@ CC = mpicc
 LIBS = -lm -lrt -lblas -llapack
 
 # Edison hpc
-#CC = cc
+#CC = CC
 #LIBS = -lrt
 
 

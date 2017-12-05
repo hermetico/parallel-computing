@@ -10,7 +10,8 @@ LIBS = -lrt
 
 
 
-CFLAGS = -O3
+
+CFLAGS = -g -Wall  -std=gnu99 -O3
 
 
 #dnsmat: main.o matrix.o comm.o

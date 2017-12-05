@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 #include "comm.h"
 #include "matrix.h"
@@ -133,8 +134,8 @@ int main(int argc, char **argv)
 
 
 	/* compute optimal time */
-
 	double optimal_time = (2. * pow(n, 3) ) / (8.4 * pow(10, 9));
+
 	/* Make full matrices */
 	double* A;
 	double* B;
@@ -199,7 +200,7 @@ int main(int argc, char **argv)
 			for (int j = 0; j < q; ++j)
 				for (int x = 0; x < n / q + (i < (n % q)); ++x)
 					for (int y = 0; y < n / q + (j < (n % q)); ++y)
-						sendbuf[i * n * ((n / q) + min(i, n % q)) + j * ((n / q) + (i < (n % q)))  * ((n / q) + min(j, n % q)) + y * ((n / q) + (i < (n % q))) + x] =
+						sendbuf[n * (i * (n / q) + min(i, n % q)) + ((n / q) + (i < (n % q)))  * (j * (n / q) + min(j, n % q)) + y * ((n / q) + (i < (n % q))) + x] =
 								A[(j * (n / q) + min(j, n % q) + y) * n + i * (n / q) + min(i, n % q) + x];
 	}
 	/* Distribute matrix A */
@@ -213,8 +214,8 @@ int main(int argc, char **argv)
 			for (int j = 0; j < q; ++j)
 				for (int x = 0; x < n / q + (i < (n % q)); ++x)
 					for (int y = 0; y < n / q + (j < (n % q)); ++y)
-						sendbuf[i * n * ((n / q) + min(i, n % q)) + j * ((n / q) + (i < (n % q)))  * ((n / q) + min(j, n % q)) + y * ((n / q) + (i < (n % q))) + x] =
-								B[(j * (n  / q) + min(j, n % q) + y) * n + i * (n / q) + min(i, n % q) + x];
+						sendbuf[n * (i*(n / q) + min(i, n % q)) + ((n / q) + (i < (n % q)))  * (j * (n / q) + min(j, n % q)) + y * ((n / q) + (i < (n % q))) + x] =
+								B[(j * (n / q) + min(j, n % q) + y) * n + i * (n / q) + min(i, n % q) + x];
 	}
 	/* Distribute matrix B */
 	if (coords[2] == 0)
@@ -241,7 +242,6 @@ int main(int argc, char **argv)
 		memcpy(A, A_sub_orig, n_subi_orig * n_subj_orig * sizeof(double));
 	if (coords[2] == 0 && coords[0] == 0)
 		memcpy(B, B_sub_orig, n_subi_orig * n_subj_orig * sizeof(double));
-
 	/* Run each config 10 times */
 	for (int k = 0; k < 10; k++)
 	{
@@ -309,10 +309,10 @@ int main(int argc, char **argv)
 		MPI_Gatherv(C_sub_orig, n_subi_orig * n_subj_orig, MPI_DOUBLE, C_complete, sendcounts, displs, MPI_DOUBLE, 0, comm_0);
 	if (rank == 0)
 	{
-		if (C_complete[check[0] * n * ((n / q) + min(check[0], n % q)) + check[1] * ((n / q) + (check[0] < (n % q))) * ((n / q) + min(check[1], n % q)) + check[3] * ((n / q) + (check[0] < (n % q))) + check[2]] != c_ab)
+		if (C_complete[n * (check[0] * (n / q) + min(check[0], n % q)) + ((n / q) + (check[0] < (n % q))) * (check[1] * (n / q) + min(check[1], n % q)) + check[3] * ((n / q) + (check[0] < (n % q))) + check[2]] != c_ab)
 		{
 			printf("The checked entry did not coincide. Please ignore if the below values do not differ significantly.\n");
-			printf("c_ab = %.20f, result = %.20f\n", c_ab, C_complete[check[0] * n * ((n / q) + min(check[0], n % q)) + check[1] * ((n / q) + (check[0] < (n % q))) * ((n / q) + min(check[1], n % q)) + check[3] * ((n / q) + (check[0] < (n % q))) + check[2]]);
+			printf("c_ab = %.20f, result = %.20f\n", c_ab, C_complete[n * (check[0] * (n / q) + min(check[0], n % q)) + ((n / q) + (check[0] < (n % q))) * (check[1] * (n / q) + min(check[1], n % q)) + check[3] * ((n / q) + (check[0] < (n % q))) + check[2]]);
 		}
 		free(C_complete);
 	}
@@ -334,7 +334,7 @@ int main(int argc, char **argv)
 
 		avg = average(10, times, &dev);
 
-		double  speedup = optimal_time / avg;
+		double speedup = optimal_time / avg;
 		double eff = speedup / p;
 
 		write_result(n, q * q * q, avg, dev, eff, speedup);

@@ -3,14 +3,18 @@
 #SBATCH -o auto-mpi24.%j.stdout
 #SBATCH -e auto-mpi24.%j.error
 
-cd $PBS_O_WORKDIR
+
 NAME=results.txt
+rm $NAME
 
-p = 1
+for n in 25 100 1000 10000; do
+    srun -n 1 ./dnsmat 1 $n >> $NAME
+done
 
-for p in 1 27 125 343 1000; do
+
+for p in 27 125 343 1000; do
   for n in 25 100 1000 10000; do
-    srun -n $p -N $p ./dnsmat $p $n >> $NAME
+    srun -n $p ./dnsmat $p $n >> $NAME
   done
 done
 
