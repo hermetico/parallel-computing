@@ -3,16 +3,24 @@
 # For other machines, replace CC = cc with
 # mpicc or other appropriate compiler
 
+# pc
+CC = mpicc
+LIBS = -lm -lrt -lblas -llapack
 
-CC = mpicc # mpich compiler on laptop
-
-
+# Edison hpc
 #CC = cc
-CFLAGS = -O3
-LIBS = 
+#LIBS = -lrt
 
-dnsmat: main.o matrix.o comm.o
-	$(CC) $(CFLAGS) -o dnsmat main.o matrix.o comm.o $(LIBS)
+
+
+CFLAGS = -O3
+
+
+#dnsmat: main.o matrix.o comm.o
+#	$(CC) $(CFLAGS) -o dnsmat main.o matrix.o comm.o $(LIBS)
+
+dnsmat: main.o matrix.o
+	$(CC) $(CFLAGS) -o dnsmat main.o matrix.o $(LIBS)
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
