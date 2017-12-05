@@ -1,0 +1,17 @@
+#!/bin/bash -l
+#SBATCH -t 00:05:00				# adjust the amount of time as necessary
+#SBATCH -o auto-mpi24.%j.stdout
+#SBATCH -e auto-mpi24.%j.error
+
+cd $PBS_O_WORKDIR
+NAME=results.txt
+
+p = 1
+
+for p in 1 27 125 343 1000; do
+  for n in 25 100 1000 10000; do
+    srun -n $p -N $p ./dnsmat $p $n >> $NAME
+  done
+done
+
+

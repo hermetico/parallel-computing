@@ -7,6 +7,8 @@
 #include "comm.h"
 #include "matrix.h"
 
+
+
 inline int min(int a, int b) { return a < b ? a : b; }
 inline int max(int a, int b) { return a > b ? a : b; }
 
@@ -23,13 +25,13 @@ void print_mat(int m, int n, double* a)
 /* Print a header for results output */
 void results_header()
 {
-	printf("Dims  No. Proc.  Avg. RT / Dev. (Eff.)\n");
+	printf("Dims  No. Proc.  Avg. RT / Dev. (Eff.) Speedup\n");
 }
 
 /* Print the stats for 1 run */
-void write_result(int full_dim, int procs, double rt, double dev, double eff)
+void write_result(int full_dim, int procs, double rt, double dev, double eff, double speedup)
 {
-	printf("%-5i %-10i %-5.5f / %-5.5f (%-5.5f)\n", full_dim, procs, rt, dev, eff);
+	printf("%-5i\t%-10i\t%-5.5f / %-5.5f\t%-5.5f\t%-5.5f\n", full_dim, procs, rt, dev, eff, speedup);
 }
 
 /* Average and standard deviation */
@@ -129,6 +131,10 @@ int main(int argc, char **argv)
 	MPI_Comm_rank(comm_k, &rank_k);
 	MPI_Status status;
 
+
+	/* compute optimal time */
+
+	double optimal_time = (2. * pow(n, 3) ) / (8.4 * pow(10, 9));
 	/* Make full matrices */
 	double* A;
 	double* B;
@@ -270,7 +276,8 @@ int main(int argc, char **argv)
 
 		/* Multiply matrices */
 		// TODO replace nested loop by call to library function
-		core_dummy(n_subi_A, n_subj_B, n_subj_A, A, B, C);
+		//core_dummy(n_subi_A, n_subj_B, n_subj_A, A, B, C);
+		matrix_mult(n_subi_A, n_subj_B, n_subj_A, A, B, C);
 
 		/* Collect results ("all" to one reduction) */
 		MPI_Reduce(C, C_sub_orig, n_subi_A * n_subj_B, MPI_DOUBLE, MPI_SUM, 0, comm_k);
@@ -324,8 +331,13 @@ int main(int argc, char **argv)
 	/* Print stats */
 	if (rank == 0)
 	{
+
 		avg = average(10, times, &dev);
-		write_result(n, q * q * q, avg, dev, 0);
+
+		double  speedup = optimal_time / avg;
+		double eff = speedup / p;
+
+		write_result(n, q * q * q, avg, dev, eff, speedup);
 	}
 
 	/* Exit program */

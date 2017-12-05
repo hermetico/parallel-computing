@@ -47,10 +47,10 @@ void matrix_mult(int M, int N, int K , double* A, double* B, double* C)
   char TRANSB = 'N';
 
   double ALPHA = 1.;
-  double BETA = 1.;
+  double BETA = 0;
 
-  int LDA = K;
-  int LDB = N;
+  int LDA = M;
+  int LDB = K;
   int LDC = M;
   DGEMM(&TRANSA, &TRANSB, &M, &N, &K, &ALPHA, A, &LDA, B, &LDB, &BETA, C, &LDC); 
 }
