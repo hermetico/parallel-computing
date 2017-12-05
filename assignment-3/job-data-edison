@@ -7,6 +7,7 @@
 NAME=results.txt
 rm $NAME
 
+echo "dims\tNo.proc\tAvg. Rt / Dev.\tEff.\tSpeedup" >> $NAME
 for n in 25 100 1000 10000; do
     srun -n 1 ./dnsmat 1 $n >> $NAME
 done

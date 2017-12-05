@@ -97,7 +97,9 @@ int main(int argc, char **argv)
 	{
 		/* Get number of processes */
 		p = atoi(argv[1]);
-		q = pow(p, 1/3.);
+		q = 0;
+		while (q * q * q < p)
+			q++;
 
 		/* Get maximum matrix dimension */
 		n = atoi(argv[2]);
