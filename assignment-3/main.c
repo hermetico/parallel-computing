@@ -8,7 +8,7 @@
 #include "comm.h"
 #include "matrix.h"
 
-
+#define PEAK 19.2
 
 inline int min(int a, int b) { return a < b ? a : b; }
 inline int max(int a, int b) { return a > b ? a : b; }
@@ -44,6 +44,7 @@ double average(int count, double *list, double *dev)
 	for (i = 0; i < count; i++)
 	{
 		sum += list[i];
+		//printf("Time: %lf\n", list[i]);
 	}
 
 	avg = sum/(double)count;
@@ -136,7 +137,9 @@ int main(int argc, char **argv)
 
 
 	/* compute optimal time */
-	double optimal_time = (2. * pow(n, 3) ) / (8.4 * pow(10, 9));
+	double optimal_time = (2. * pow(n, 3) ) / (PEAK * pow(10, 9));
+	//printf("optimal time for n=%i -> %lf\n", n, optimal_time);
+
 
 	/* Make full matrices */
 	double* A;
@@ -275,12 +278,14 @@ int main(int argc, char **argv)
 		/* Distribute matrices (respective one-to-"all" comm) */
 		MPI_Bcast(A, n_subi_A * n_subj_A, MPI_DOUBLE, coords[2], comm_j);
 		MPI_Bcast(B, n_subi_B * n_subj_B, MPI_DOUBLE, coords[2], comm_i);
+		
 
 		/* Multiply matrices */
 		// TODO replace nested loop by call to library function
 		//core_dummy(n_subi_A, n_subj_B, n_subj_A, A, B, C);
 		matrix_mult(n_subi_A, n_subj_B, n_subj_A, A, B, C);
 
+		
 		/* Collect results ("all" to one reduction) */
 		MPI_Reduce(C, C_sub_orig, n_subi_A * n_subj_B, MPI_DOUBLE, MPI_SUM, 0, comm_k);
 

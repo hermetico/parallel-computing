@@ -3,15 +3,17 @@
 # For other machines, replace CC = cc with
 # mpicc or other appropriate compiler
 
+# pc
+CC = mpicc
+LIBS = -lm -lrt -lblas -llapack
 
 # Edison hpc
-CC = cc
-LIBS = -lrt
+#CC = CC
+#LIBS = -lrt
 
 
 
-
-CFLAGS = -g -Wall  -std=gnu99 -O3
+CFLAGS = -O3
 
 
 #dnsmat: main.o matrix.o comm.o

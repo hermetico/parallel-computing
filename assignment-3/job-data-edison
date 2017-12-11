@@ -4,18 +4,18 @@
 #SBATCH -e auto-mpi24.%j.error
 
 
-NAME=results.txt
+NAME=$1
 rm $NAME
 
-echo "dims\tNo.proc\tAvg. Rt / Dev.\tEff.\tSpeedup" >> $NAME
-for n in 25 125 1000 10000; do
-    srun -n 1 ./dnsmat 1 $n >> $NAME
+echo "dims	No.proc	Avg. Rt / Dev.	Eff.	Speedup" >> $NAME
+for n in 25 125 1000; do
+    srun -n 1 --cpu-freq 2400000 ./dnsmat 1 $n >> $NAME
 done
 
 
-for p in 27 125 343 1000; do
+for p in 8 27 125 343 1000; do
   for n in 25 125 1000 10000; do
-    srun -n $p ./dnsmat $p $n >> $NAME
+    srun -n $p --cpu-freq 2400000 ./dnsmat $p $n >> $NAME
   done
 done
 
