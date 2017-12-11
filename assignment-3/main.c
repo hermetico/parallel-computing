@@ -281,8 +281,6 @@ int main(int argc, char **argv)
 		
 
 		/* Multiply matrices */
-		// TODO replace nested loop by call to library function
-		//core_dummy(n_subi_A, n_subj_B, n_subj_A, A, B, C);
 		matrix_mult(n_subi_A, n_subj_B, n_subj_A, A, B, C);
 
 		
